@@ -19,6 +19,22 @@ class Simple2DContinuousEnvironment:
         self.organism_constraint = np.ones(env_size)
         self._coordinates_bounds = coordinates_bounds
         self._vision_distance = vision_distance
+        self.walls = [
+            np.array([
+                [0, 0],
+                [0, 1],
+            ]),
+            np.array([
+                [0, 1],
+                [1, 1],
+            ]),
+            np.array([
+                [1, 1],
+                [1, 0],
+            ]),
+            np.array([[1, 0], [0, 0]]),
+        ]
+        self.organism_size = 0.08
 
     def propagate_organisms(self, organisms: list[Organism]):
 
@@ -39,12 +55,15 @@ class Simple2DContinuousEnvironment:
         if code not in self.organisms_coordinates:
             raise KeyError("invalid organism code accessed")
         coordinates_bounds = self._coordinates_bounds  # (min, max)
-        coordinates = self.organisms_coordinates.get(code)
-        coordinates += self.organism_constraint * result.flatten()
+        last_coordinates = self.organisms_coordinates.get(code)
+        coordinates = last_coordinates + self.organism_constraint * result.flatten()
         # keep in the environment bounds
         coordinates = np.minimum(coordinates, coordinates_bounds[1])
         coordinates = np.maximum(coordinates, coordinates_bounds[0])
         # TODO: collision
+        for wall in self.walls:
+            if check_collision_with_wall(coordinates, wall[0], wall[1], self.organism_size):
+
         return coordinates
 
     def to_organism_input(self, code: str) -> np.ndarray:
@@ -93,29 +112,13 @@ class Simple2DContinuousEnvironment:
                             angle] = 0.5  # set .5 for as other organisms
 
         # walls
-        # TODO: walls as environment parameter
-        walls = [
-            np.array([
-                [0, 0],
-                [0, 1],
-            ]),
-            np.array([
-                [0, 1],
-                [1, 1],
-            ]),
-            np.array([
-                [1, 1],
-                [1, 0],
-            ]),
-            np.array([[1, 0], [0, 0]]),
-        ]
         dist_to_walls = np.fromiter(
             map(lambda x: distance_point_line(coordinates.flatten(), x),
-                walls),
+                self.walls),
             dtype=np.float64,
         )
         direction_walls = np.fromiter(map(lambda x: np.arctan2(*(x[0] - x[1])),
-                                          walls),
+                                          self.walls),
                                       dtype=np.float64)
         direction_walls /= 2 * np.pi
         for d, a in zip(dist_to_walls, direction_walls):
@@ -181,6 +184,7 @@ def distance_point_line(point, line):
 
 
 if __name__ == "__main__":
+    pass
     # env = Simple2DContinuousEnvironment(2)
     # ORGANISMS_NUM = 5
     #
