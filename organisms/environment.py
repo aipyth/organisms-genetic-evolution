@@ -9,14 +9,12 @@ import plotly.express as px
 
 class Simple2DContinuousEnvironment:
 
-    def __init__(
-        self,
-        env_size: tuple = 2,
-        coordinates_bounds: tuple[float, float] = (0, 1),
-        vision_distance: float = 0.1,
-    ):
-        self.environment_shape = env_size
-        self.organism_constraint = np.ones(env_size)
+    def __init__(self,
+                 coordinates_bounds: tuple[float, float] = (0, 1),
+                 vision_distance: float = 0.1,
+                 viscosity: float = 0.01):
+        self.environment_shape = 2
+        self._viscosity = viscosity
         self._coordinates_bounds = coordinates_bounds
         self._vision_distance = vision_distance
         self.walls = [
@@ -47,24 +45,68 @@ class Simple2DContinuousEnvironment:
             for (k, _) in self.organisms.items()
         }
 
-    def set_organism_constraint(self, constraint):
-        self.organism_constraint = constraint
+    def set_environment_viscosity(self, viscosity):
+        self._viscosity = viscosity
 
     def organism_result_to_coordinates(self, code: str,
                                        result: np.ndarray) -> np.ndarray:
         if code not in self.organisms_coordinates:
             raise KeyError("invalid organism code accessed")
-        coordinates_bounds = self._coordinates_bounds  # (min, max)
+        # coordinates_bounds = self._coordinates_bounds  # (min, max)
         last_coordinates = self.organisms_coordinates.get(code)
-        coordinates = last_coordinates + self.organism_constraint * result.flatten()
+        coordinates = last_coordinates + \
+            self._viscosity * result.flatten()
         # keep in the environment bounds
-        coordinates = np.minimum(coordinates, coordinates_bounds[1])
-        coordinates = np.maximum(coordinates, coordinates_bounds[0])
-        # TODO: collision
-        for wall in self.walls:
-            if check_collision_with_wall(coordinates, wall[0], wall[1], self.organism_size):
+        # coordinates = np.minimum(coordinates, coordinates_bounds[1])
+        # coordinates = np.maximum(coordinates, coordinates_bounds[0])
+        # Check for collisions with walls and other organisms
+        # if self._detect_collision(coordinates, code):
+        # Use the direction of least resistance to avoid collisions
+        # direction = self._direction_of_least_resistance(
+        #     coordinates, last_coordinates)
+        # coordinates = last_coordinates + self.organism_constraint * direction
+        coordinates *= self._correct_organism_direction(coordinates,
+                                                        last_coordinates)
+
+        # Keep the organism in the environment bounds after collision avoidance
+        # coordinates = np.minimum(coordinates, coordinates_bounds[1])
+        # coordinates = np.maximum(coordinates, coordinates_bounds[0])
+
+        # Update the organism's coordinates
+        self.organisms_coordinates[code] = coordinates
 
         return coordinates
+
+    def _correct_organism_direction(
+            self, coordinates: np.ndarray,
+            last_coordinates: np.ndarray) -> np.ndarray:
+        direction = coordinates - last_coordinates
+        unit_direction = direction / np.linalg.norm(direction)
+
+        resistance_forces = np.zeros(unit_direction.shape)
+
+        for code, coord in self.organisms_coordinates.items():
+            distance = np.linalg.norm(coordinates - coord)
+            if distance > self.organism_size:
+                continue
+            # direction -= distance
+            normal_vector = coordinates - coord
+            unit_normal_vector = normal_vector / np.linalg.norm(normal_vector)
+            resistance_forces += unit_normal_vector
+        for wall in self.walls:
+            if not check_collision_with_wall(coordinates, wall[0], wall[1],
+                                             self.organism_size):
+                continue
+            normal_vector = np.array(
+                [wall[1, 1] - wall[0, 1], wall[0, 0] - wall[1, 0]])
+            unit_normal_vector = normal_vector / np.linalg.norm(normal_vector)
+            resistance_forces += unit_normal_vector
+            # dot_product = np.dot(unit_direction, unit_normal_vector)
+            # if dot_product < min_dot_product:
+            #     min_dot_product = dot_product
+            #     min_normal_vector = unit_normal_vector
+
+        return direction * resistance_forces
 
     def to_organism_input(self, code: str) -> np.ndarray:
         if code not in self.organisms_coordinates:
@@ -153,16 +195,15 @@ def check_collision_with_wall(organism_location, wall_start, wall_end,
     return distance < threshold_distance
 
 
-def check_collision_with_other_organisms(organism_location,
-                                         other_organism_locations,
-                                         threshold_distance):
+def check_collision_with_other_organism(organism_location,
+                                        other_organism_location,
+                                        threshold_distance):
     """
     Check if the organism is in collision with any of the other organisms.
     """
-    for other_organism_location in other_organism_locations:
-        distance = np.linalg.norm(organism_location - other_organism_location)
-        if distance < threshold_distance:
-            return True
+    distance = np.linalg.norm(organism_location - other_organism_location)
+    if distance < threshold_distance:
+        return True
     return False
 
 

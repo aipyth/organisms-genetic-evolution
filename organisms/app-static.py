@@ -9,7 +9,7 @@ from tqdm import tqdm
 from environment import Simple2DContinuousEnvironment
 from organism import Organism
 
-env = Simple2DContinuousEnvironment(2)
+env = Simple2DContinuousEnvironment()
 ORGANISMS_NUM = 20
 
 orgs = []
@@ -21,7 +21,8 @@ for i in tqdm(range(ORGANISMS_NUM)):
     orgs.append(org)
 
 env.propagate_organisms(orgs)
-env.set_organism_constraint(np.array([.3, .3]))
+# env.set_organism_constraint(np.array([.3, .3]))
+env.set_environment_viscosity(0.001)
 
 df = pd.DataFrame(columns=['x', 'y', 'name', 'iteration'])
 iterations = 100
