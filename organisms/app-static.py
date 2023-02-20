@@ -10,7 +10,7 @@ from environment import Simple2DContinuousEnvironment
 from organism import Organism
 
 env = Simple2DContinuousEnvironment()
-ORGANISMS_NUM = 20
+ORGANISMS_NUM = 25
 
 orgs = []
 for i in tqdm(range(ORGANISMS_NUM)):
@@ -22,11 +22,13 @@ for i in tqdm(range(ORGANISMS_NUM)):
 
 env.propagate_organisms(orgs)
 # env.set_organism_constraint(np.array([.3, .3]))
-env.set_environment_viscosity(0.001)
+env.set_organism_size(0.05)
+env.set_environment_viscosity(0.1)
 
 df = pd.DataFrame(columns=['x', 'y', 'name', 'iteration'])
 iterations = 100
 for i in tqdm(range(iterations)):
+    print('i', i)
     env.tick()
     for (k, v) in env.organisms_coordinates.items():
         df = pd.concat([
