@@ -4,9 +4,17 @@ import functools
 
 class Organism:
 
-    def __init__(self, genome: list[np.ndarray] | None = None):
+    def __init__(self,
+                 x: float | None = None,
+                 y: float | None = None,
+                 r: float | None = None,
+                 genome: list[np.ndarray] | None = None):
+        self.x = x
+        self.y = y
+        self.r = r
         self.genome = genome or []
         self._activation_function = np.tanh
+        self.energy = 25
 
     def __str__(self):
         return f'<Organism {[g.shape for g in self.genome]}>'

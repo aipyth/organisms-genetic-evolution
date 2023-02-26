@@ -10,6 +10,7 @@ plotly = "*"
 dash = "*"
 pandas = "*"
 tqdm = "*"
+rtree = "*"
 
 [dev-packages]
 
