@@ -5,12 +5,9 @@ from organism import Organism
 
 
 class Simple2DContinuousEnvironment:
-
-    def __init__(self,
-                 width: int,
-                 height: int,
-                 distance_sectors: int = 6,
-                 angle_sectors: int = 6):
+    def __init__(
+        self, width: int, height: int, distance_sectors: int = 6, angle_sectors: int = 6
+    ):
         self.width = width
         self.height = height
         self.organisms = []
@@ -46,18 +43,19 @@ class Simple2DContinuousEnvironment:
         """Check for collision with food and increase energy if collision occurs."""
         vision_range = 10
         # get organism's coordinates
-        x, y, _ = next(
-            (x, y, o) for x, y, o in self.organisms if o == organism)
+        x, y, _ = next((x, y, o)
+                       for x, y, o in self.organisms if o == organism)
         # get all food in a region
         foods = [
-            food for food in self.food_idx.intersection((x - vision_range,
-                                                         y - vision_range,
-                                                         x + vision_range,
-                                                         y + vision_range))
+            food
+            for food in self.food_idx.intersection(
+                (x - vision_range, y - vision_range,
+                 x + vision_range, y + vision_range)
+            )
         ]
         for food in foods:
-            if np.linalg.norm(np.array(food) -
-                              np.array((x, y))) <= self.food_size:
+            if np.linalg.norm(np.array(food) - np.array((x, y))) <= self.food_size:
+                # print('organism ate a piece of food')
                 organism.energy += self.food_energy
                 self.remove_food(food)
 
@@ -76,10 +74,32 @@ class Simple2DContinuousEnvironment:
                 break
 
     def organism_result_to_coordinates(
-            self, organism, result: np.ndarray) -> tuple[float, float]:
-        i, (x, y, _) = next((i, (x, y, o))
-                            for i, (x, y, o) in enumerate(self.organisms)
-                            if o == organism)
+        self, organism, result: np.ndarray
+    ) -> tuple[float, float]:
+        """
+        This function takes in an organism and a result which is a numpy array.
+        It then updates the coordinates of the organism and returns a tuple of
+        floats that represent the updated coordinates for the organism's
+        position.
+
+        Args:
+            organism: An object representing the organism whose coordinates are
+                      to be updated.
+            result: A numpy array consisting of two floats representing
+                    the change in the coordinates for the organism.
+
+        Returns:
+            A tuple of two floats representing the updated x and y coordinates
+            for the organism's position.
+
+        Raises:
+            No specific exceptions are raised.
+        """
+        i, (x, y, _) = next(
+            (i, (x, y, o))
+            for i, (x, y, o) in enumerate(self.organisms)
+            if o == organism
+        )
         dx, dy = result
         x += dx
         y += dy
@@ -91,41 +111,77 @@ class Simple2DContinuousEnvironment:
         return x, y
 
     def to_organism_input(self, organism: Organism) -> np.ndarray:
+        """
+        This method takes in an organism as input and returns a numpy array
+        representing the vision matrix of the organism.
+
+        Args:
+            organism: An instance of the Organism class whose vision matrix is
+            to be calculated.
+
+        Returns:
+            Numpy array representing the vision matrix of the organism.
+
+        Raises:
+            No specific exceptions are raised.
+        """
         # find the organism's position
-        i, (x, y, _) = next((i, (x, y, o))
-                            for i, (x, y, o) in enumerate(self.organisms)
-                            if o == organism)
+        i, (x, y, _) = next(
+            (i, (x, y, o))
+            for i, (x, y, o) in enumerate(self.organisms)
+            if o == organism
+        )
         # get nearby organisms from the rtree
         vision_range = 10
         organisms = [
             self.organisms[i]
-            for i in self.organism_idx.intersection((x - vision_range,
-                                                     y - vision_range,
-                                                     x + vision_range,
-                                                     y + vision_range))
+            for i in self.organism_idx.intersection(
+                (x - vision_range, y - vision_range,
+                 x + vision_range, y + vision_range)
+            )
         ]
+        # eliminate the target organism to compute matrix for
         organisms = list(filter(lambda os: os[2] != organism, organisms))
         vision_distance = 10
-        vision_matrix = sector_vision((x, y), organisms, vision_distance,
-                                      self._distance_sectors,
-                                      self._angle_sectors)
+        vision_matrix = sector_vision(
+            (x, y),
+            organisms,
+            vision_distance,
+            self._distance_sectors,
+            self._angle_sectors,
+        )
         return vision_matrix
 
     def tick(self):
+        """
+        This method simulates the passage of time in the environment. It iterates through each organism and performs the following operations:
+            - Detects for the organism if it's colliding with any other organism.
+            - Evaluates the organism based on the vision matrix of the organisms surroundings.
+            - Updates the position of the organism based on the evaluation result.
+        Afterwards, with a probability of 0.5 a new food is added to the environment.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         for x, y, organism in self.organisms:
             self.detect_collision(organism)
             result = organism.evaluate(self.to_organism_input(organism))
             self.organism_result_to_coordinates(organism, result)
         # add food with some probability
-        if np.random.rand() < 0.1:
+        if np.random.rand() < 0.5:
             self.add_food()
 
 
-def sector_vision(organism_coordinates: tuple[float, float],
-                  organisms: List[tuple[float, float, Organism]],
-                  distance: float,
-                  distance_sectors: int = 6,
-                  angle_sectors: int = 6):
+def sector_vision(
+    organism_coordinates: tuple[float, float],
+    organisms: List[tuple[float, float, Organism]],
+    distance: float,
+    distance_sectors: int = 6,
+    angle_sectors: int = 6,
+):
     organism_coordinates = np.array(organism_coordinates)
     metric = np.linalg.norm
 
@@ -133,8 +189,9 @@ def sector_vision(organism_coordinates: tuple[float, float],
         return np.arctan2(*(x - organism_coordinates))
 
     distances = map(
-        lambda o: metric(organism_coordinates - np.array([o[0], o[1]])),
-        organisms)
+        lambda o: metric(organism_coordinates -
+                         np.array([o[0], o[1]])), organisms
+    )
 
     angles = map(lambda o: to_angle(np.array([o[0], o[1]])), organisms)
     # get only non-negative angles [0. 2pi]

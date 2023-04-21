@@ -12,11 +12,11 @@ from tqdm import tqdm
 from environment import Simple2DContinuousEnvironment
 from organism import Organism
 
-width = 100
-height = 100
+width = 1
+height = 1
 
 env = Simple2DContinuousEnvironment(width, height)
-ORGANISMS_NUM = 25
+ORGANISMS_NUM = 15
 
 # for i in tqdm(range(ORGANISMS_NUM)):
 for i in range(ORGANISMS_NUM):
@@ -31,7 +31,7 @@ for i in range(ORGANISMS_NUM):
 
 organisms_df = pd.DataFrame(columns=['x', 'y', 'name', 'iteration'])
 food_df = pd.DataFrame(columns=['x', 'y', 'name', 'iteration'])
-iterations = 100
+iterations = 300
 for i in tqdm(range(iterations)):
     env.tick()
     for org in env.organisms:
@@ -47,7 +47,7 @@ for i in tqdm(range(iterations)):
                 },
                 index=['name', 'iteration'])
         ],
-                                 ignore_index=True)
+            ignore_index=True)
     for food in env.food:
         # for (k, v) in env.organisms_coordinates.items():
         food_df = pd.concat([
@@ -61,7 +61,7 @@ for i in tqdm(range(iterations)):
                 },
                 index=['name', 'iteration'])
         ],
-                            ignore_index=True)
+            ignore_index=True)
 
 print(organisms_df.shape)
 print(food_df.shape)
@@ -118,7 +118,8 @@ layout = go.Layout(title='Scatter Plot with Two Dataframes',
                                      args=[
                                          None, {
                                              'frame': {
-                                                 'duration': 500,
+                                                 'duration': 50,
+                                                 # 'duration': 500,
                                                  'redraw': True
                                              },
                                              'fromcurrent': True,
