@@ -57,6 +57,7 @@ class Simple2DContinuousEnvironment:
             if np.linalg.norm(np.array(food) - np.array((x, y))) <= self.food_size:
                 # print('organism ate a piece of food')
                 organism.energy += self.food_energy
+                # organism.energy_inc(self.food_energy)
                 self.remove_food(food)
 
     def add_organism(self, organism, x: float = None, y: float = None):
@@ -87,6 +88,7 @@ class Simple2DContinuousEnvironment:
                       to be updated.
             result: A numpy array consisting of two floats representing
                     the change in the coordinates for the organism.
+
 
         Returns:
             A tuple of two floats representing the updated x and y coordinates
@@ -158,7 +160,7 @@ class Simple2DContinuousEnvironment:
             - Detects for the organism if it's colliding with any other organism.
             - Evaluates the organism based on the vision matrix of the organisms surroundings.
             - Updates the position of the organism based on the evaluation result.
-        Afterwards, with a probability of 0.5 a new food is added to the environment.
+        Afterwards, with a probability of 0.1 a new food is added to the environment.
 
         Args:
             None
@@ -171,7 +173,7 @@ class Simple2DContinuousEnvironment:
             result = organism.evaluate(self.to_organism_input(organism))
             self.organism_result_to_coordinates(organism, result)
         # add food with some probability
-        if np.random.rand() < 0.5:
+        if np.random.rand() < 0.1:
             self.add_food()
 
 

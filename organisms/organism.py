@@ -20,7 +20,12 @@ class Organism:
     def __str__(self):
         return f'<Organism {[g.shape for g in self.genome]}>'
 
-    def energy_inc(self, value):
+    @property
+    def energy(self):
+        return self._energy
+
+    @energy.setter
+    def energy(self, value):
         """Increases the amount of energy in the organism."""
         self._energy += value if value > 0 else 0
 
@@ -42,10 +47,6 @@ class Organism:
     @property
     def age(self):
         return self._age
-
-    @property
-    def energy(self):
-        return self._energy
 
     def evaluate(self, x):
         movement = functools.reduce(
