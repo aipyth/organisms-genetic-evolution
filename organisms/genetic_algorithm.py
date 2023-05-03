@@ -7,6 +7,7 @@
 
 # For now we will use a factory pattern.
 
+
 def create_operators_set(*operators):
     pass
 
@@ -16,4 +17,4 @@ class Operator:
         pass
 
     def apply(self, generation):
-        raise Error('not implemented')
+        raise NotImplementedError("This function has to be implemented")

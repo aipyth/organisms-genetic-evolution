@@ -1,24 +1,47 @@
+import random
 import numpy as np
 import functools
+import utils
 
 
 class Organism:
 
-    def __init__(self,
-                 x: float | None = None,
-                 y: float | None = None,
-                 r: float | None = None,
-                 genome: list[np.ndarray] | None = None):
+    def __init__(
+        self,
+        x: float | None = None,
+        y: float | None = None,
+        r: float | None = None,
+        genome: list[np.ndarray] | None = None,
+    ):
         self.x = x
         self.y = y
         self.r = r
-        self.genome = genome or []
+        self.genome = genome or None
         self._activation_function = np.tanh
         self._energy = 25
         self._age = 0
+        self._size = None
+        self._name = utils.generate_name(random.randint(1, 4))
+        self._parents = []
 
     def __str__(self):
-        return f'<Organism {[g.shape for g in self.genome]}>'
+        return f"<Organism {[g.shape for g in self.genome]}>"
+
+    def add_parent(self, organism):
+        self._parents.append(organism)
+        return self
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def weights(self):
+        return list(map(lambda x: x[0], self.genome))
+
+    @property
+    def biases(self):
+        return list(map(lambda x: x[1], self.genome))
 
     @property
     def energy(self):
@@ -29,13 +52,21 @@ class Organism:
         """Increases the amount of energy in the organism."""
         self._energy += value if value > 0 else 0
 
+    def set_genome(self, genome: list[tuple[np.ndarray, np.ndarray]]):
+        self.genome = genome
+        return self
+
     def set_genome_size(self, size: list[int]):
-        mu = 0
-        sigma = 1
-        # initialize weights and bias
-        self.genome = [(np.random.normal(mu, sigma, [size[i], size[i + 1]]),
-                        np.random.normal(mu, sigma, (size[i + 1], 1)))
-                       for i in range(len(size) - 1)]
+        self._size = size
+        if self.genome is None:
+            mu = 0
+            sigma = 1
+            # initialize weights and bias
+            self.genome = [(
+                np.random.normal(mu, sigma, [size[i], size[i + 1]]),
+                np.random.normal(mu, sigma, (size[i + 1], 1)),
+            ) for i in range(len(size) - 1)]
+        return self
 
     def set_activation_function(self, func):
         self._activation_function = func
@@ -59,13 +90,14 @@ class Organism:
         # is wasted by fact of organism's thinking and commands
         decrease_by = 1
         self._energy = self._energy - decrease_by if self.is_alive else self._energy
+        self._age += 1
         return movement * (self._energy > 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     org1 = Organism()
     org1.set_genome_size([2, 2, 4, 10])
     print(org1)
     x = np.array([0.1, 0.2]).reshape((2, 1))
-    print(f'{x=}')
+    print(f"{x=}")
     print(org1.evaluate(x))

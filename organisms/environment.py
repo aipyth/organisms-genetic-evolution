@@ -5,9 +5,13 @@ from organism import Organism
 
 
 class Simple2DContinuousEnvironment:
-    def __init__(
-        self, width: int, height: int, distance_sectors: int = 6, angle_sectors: int = 6
-    ):
+
+    def __init__(self,
+                 width: int,
+                 height: int,
+                 distance_sectors: int = 6,
+                 angle_sectors: int = 6,
+                 food_appearance_prob: float = 0.2):
         self.width = width
         self.height = height
         self.organisms = []
@@ -18,6 +22,7 @@ class Simple2DContinuousEnvironment:
         self._angle_sectors = angle_sectors
         self.food_energy = 10
         self.food_size = 0.03
+        self._food_appearance_prob = food_appearance_prob
 
     @property
     def organism_input_dimension(self):
@@ -43,18 +48,19 @@ class Simple2DContinuousEnvironment:
         """Check for collision with food and increase energy if collision occurs."""
         vision_range = 10
         # get organism's coordinates
-        x, y, _ = next((x, y, o)
-                       for x, y, o in self.organisms if o == organism)
+        o = next(o for o in self.organisms if o == organism)
+        x = o.x
+        y = o.y
         # get all food in a region
         foods = [
-            food
-            for food in self.food_idx.intersection(
-                (x - vision_range, y - vision_range,
-                 x + vision_range, y + vision_range)
-            )
+            food for food in self.food_idx.intersection((x - vision_range,
+                                                         y - vision_range,
+                                                         x + vision_range,
+                                                         y + vision_range))
         ]
         for food in foods:
-            if np.linalg.norm(np.array(food) - np.array((x, y))) <= self.food_size:
+            if np.linalg.norm(np.array(food) -
+                              np.array((x, y))) <= self.food_size:
                 # print('organism ate a piece of food')
                 organism.energy += self.food_energy
                 # organism.energy_inc(self.food_energy)
@@ -64,19 +70,21 @@ class Simple2DContinuousEnvironment:
         if x is None or y is None:
             x = np.random.uniform(0, self.width)
             y = np.random.uniform(0, self.height)
-        self.organisms.append((x, y, organism))
+        # self.organisms.append((x, y, organism))
+        self.organisms.append(organism)
+        organism.x = x
+        organism.y = y
         self.organism_idx.insert(len(self.organisms) - 1, (x, y, x, y))
 
     def remove_organism(self, organism):
-        for i, (x, y, o) in enumerate(self.organisms):
+        for i, o in enumerate(self.organisms):
             if o == organism:
                 self.organisms.pop(i)
-                self.organism_idx.delete(i, (x, y, x, y))
+                self.organism_idx.delete(i, (o.x, o.y, o.x, o.y))
                 break
 
     def organism_result_to_coordinates(
-        self, organism, result: np.ndarray
-    ) -> tuple[float, float]:
+            self, organism, result: np.ndarray) -> tuple[float, float]:
         """
         This function takes in an organism and a result which is a numpy array.
         It then updates the coordinates of the organism and returns a tuple of
@@ -97,18 +105,20 @@ class Simple2DContinuousEnvironment:
         Raises:
             No specific exceptions are raised.
         """
-        i, (x, y, _) = next(
-            (i, (x, y, o))
-            for i, (x, y, o) in enumerate(self.organisms)
-            if o == organism
-        )
+        i, o = next(
+            (i, o) for i, o in enumerate(self.organisms) if o == organism)
+        x = o.x
+        y = o.y
         dx, dy = result
         x += dx
         y += dy
         x = np.clip(x, 0, self.width)
         y = np.clip(y, 0, self.height)
         self.organism_idx.delete(i, (x, y, x, y))
-        self.organisms[i] = (x, y, organism)
+        # self.organisms[i] = (x, y, organism)
+        # self.organisms[i] = organism
+        organism.x = x
+        organism.y = y
         self.organism_idx.insert(i, (x, y, x, y))
         return x, y
 
@@ -128,22 +138,22 @@ class Simple2DContinuousEnvironment:
             No specific exceptions are raised.
         """
         # find the organism's position
-        i, (x, y, _) = next(
-            (i, (x, y, o))
-            for i, (x, y, o) in enumerate(self.organisms)
-            if o == organism
-        )
+        i, o = next(
+            (i, o) for i, o in enumerate(self.organisms) if o == organism)
+        x = o.x
+        y = o.y
         # get nearby organisms from the rtree
         vision_range = 10
         organisms = [
             self.organisms[i]
-            for i in self.organism_idx.intersection(
-                (x - vision_range, y - vision_range,
-                 x + vision_range, y + vision_range)
-            )
+            for i in self.organism_idx.intersection((x - vision_range,
+                                                     y - vision_range,
+                                                     x + vision_range,
+                                                     y + vision_range))
         ]
         # eliminate the target organism to compute matrix for
-        organisms = list(filter(lambda os: os[2] != organism, organisms))
+        organisms = list(filter(lambda os: os is not organism, organisms))
+        print('organisms', organisms)
         vision_distance = 10
         vision_matrix = sector_vision(
             (x, y),
@@ -168,18 +178,20 @@ class Simple2DContinuousEnvironment:
         Returns:
             None
         """
-        for x, y, organism in self.organisms:
+        for organism in self.organisms:
             self.detect_collision(organism)
             result = organism.evaluate(self.to_organism_input(organism))
+            print('input shape', self.to_organism_input(organism).shape)
+            print('result shape', result.shape)
             self.organism_result_to_coordinates(organism, result)
         # add food with some probability
-        if np.random.rand() < 0.1:
+        if np.random.rand() < self._food_appearance_prob:
             self.add_food()
 
 
 def sector_vision(
     organism_coordinates: tuple[float, float],
-    organisms: List[tuple[float, float, Organism]],
+    organisms: List[Organism],
     distance: float,
     distance_sectors: int = 6,
     angle_sectors: int = 6,
@@ -191,11 +203,10 @@ def sector_vision(
         return np.arctan2(*(x - organism_coordinates))
 
     distances = map(
-        lambda o: metric(organism_coordinates -
-                         np.array([o[0], o[1]])), organisms
-    )
+        lambda o: metric(organism_coordinates - np.array([o.x, o.y])),
+        organisms)
 
-    angles = map(lambda o: to_angle(np.array([o[0], o[1]])), organisms)
+    angles = map(lambda o: to_angle(np.array([o.x, o.y])), organisms)
     # get only non-negative angles [0. 2pi]
     list(angles)
     # angles normalization to [0, 1]
