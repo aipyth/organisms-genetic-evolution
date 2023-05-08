@@ -11,8 +11,10 @@ dash = "*"
 pandas = "*"
 tqdm = "*"
 rtree = "*"
+matplotlib = "*"
 
 [dev-packages]
+yapf = "*"
 
 [requires]
 python_version = "3.10"

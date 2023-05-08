@@ -31,10 +31,12 @@ class Evolve:
         # 1. Selection
         selected = self._selection(organisms)
         next_population: list[Organism] = []
+        # print(f"selection {len(selected)}")
 
         # 2. Elitism
         next_population.extend(selected[:self._elitism] if self._elitism <
                                len(selected) else selected)
+        # print(f"next_population after elitism {next_population}")
 
         # 3. Crossover
         for i in range(0, len(selected), 2):
@@ -53,6 +55,7 @@ class Evolve:
                     self._encoding.reverse(enc, new_organisms[i]))
                 for i, enc in enumerate(children)
             ]
+            next_population.extend(new_organisms)
 
             # next_population.extend([
             #     new_organism_from_encoding(
@@ -60,6 +63,8 @@ class Evolve:
             #         enc).set_genome_size(parent_a._size).add_parent(
             #             parent_a).add_parent(parent_b) for enc in children
             # ])
+
+        # print(f"number of organisms after crossover {len(next_population)}")
 
         # 4. Mutation
         for org in next_population:
@@ -71,13 +76,15 @@ class Evolve:
 
 class TruncationSelection:
 
+    def __init__(self, n: int = 10):
+        self.n = n
+
     def __call__(self, population: List[Organism]) -> List[Organism]:
         # TODO: N as a hyperparameter
-        N = 10
-        print(population)
+        # print(population)
         fitness_values = np.array(
             [get_organism_fitness(x) for x in population])
-        top_indices = np.argsort(fitness_values)[-N:]
+        top_indices = np.argsort(fitness_values)[-self.n:]
         return [population[ind] for ind in top_indices]
 
 

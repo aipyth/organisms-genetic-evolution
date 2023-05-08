@@ -1,7 +1,21 @@
-from typing import List
+from typing import Any, List
 import numpy as np
 from rtree import index
 from organism import Organism
+
+MAX_VELOCITY = 0.01
+MAX_DTHETA = 0.2
+
+
+class Vision:
+
+    @property
+    def organism_input_shape(self):
+        raise NotImplementedError()
+
+    def __call__(self, target: Organism, organisms: list[Organism],
+                 food: list[tuple[float, float]]) -> np.ndarray:
+        raise NotImplementedError()
 
 
 class Simple2DContinuousEnvironment:
@@ -9,78 +23,88 @@ class Simple2DContinuousEnvironment:
     def __init__(self,
                  width: int,
                  height: int,
-                 distance_sectors: int = 6,
-                 angle_sectors: int = 6,
+                 vision: Vision,
+                 vision_range: float = 1,
+                 organism_size: float = 0.01,
+                 food_size: float = 0.03,
+                 food_energy: float = 10,
                  food_appearance_prob: float = 0.2):
         self.width = width
         self.height = height
-        self.organisms = []
-        self.food = []
+        self.organisms: dict[int, Organism] = {}
+        self._organism_counter = 0
+        self.food: dict[int, tuple[float, float]] = {}
+        self._food_counter = 0
         self.organism_idx = index.Index()
         self.food_idx = index.Index()
-        self._distance_sectors = distance_sectors
-        self._angle_sectors = angle_sectors
-        self.food_energy = 10
-        self.food_size = 0.03
+        self._vision = vision
+        self.food_energy = food_energy
+        self.food_size = food_size
+        self.organism_size = organism_size
         self._food_appearance_prob = food_appearance_prob
-
-    @property
-    def organism_input_dimension(self):
-        return self._distance_sectors * self._angle_sectors
+        self.vision_range = vision_range
 
     def add_food(self):
         # generate random location for the food
         x = np.random.uniform(0, self.width)
         y = np.random.uniform(0, self.height)
         # add the food to the environment
-        self.food.append((x, y))
+        self.food[self._food_counter] = (x, y)
         # insert into the rtree
-        self.food_idx.insert(len(self.food) - 1, (x, y, x, y))
+        self.food_idx.insert(self._food_counter, (x, y, x, y))
+        self._food_counter += 1
 
-    def remove_food(self, food):
-        for i, (x, y) in enumerate(self.food):
+    def remove_food(self, food: tuple[float, float]):
+        for i, (x, y) in self.food.items():
             if (x, y) == food:
-                self.food.pop(i)
+                # self.food.pop(i)
+                del self.food[i]
                 self.food_idx.delete(i, (x, y, x, y))
                 break
 
     def detect_collision(self, organism):
         """Check for collision with food and increase energy if collision occurs."""
-        vision_range = 10
         # get organism's coordinates
-        o = next(o for o in self.organisms if o == organism)
-        x = o.x
-        y = o.y
+        o = next(o for i, o in self.organisms.items() if o == organism)
+        pos = o.x
         # get all food in a region
         foods = [
-            food for food in self.food_idx.intersection((x - vision_range,
-                                                         y - vision_range,
-                                                         x + vision_range,
-                                                         y + vision_range))
+            food
+            for food in self.food_idx.intersection((o.x[0] - self.vision_range,
+                                                    o.x[1] - self.vision_range,
+                                                    o.x[0] + self.vision_range,
+                                                    o.x[1] +
+                                                    self.vision_range))
         ]
-        for food in foods:
-            if np.linalg.norm(np.array(food) -
-                              np.array((x, y))) <= self.food_size:
-                # print('organism ate a piece of food')
+        for i in foods:
+            if np.linalg.norm(np.array(self.food[i]) -
+                              o.x) <= self.food_size + self.organism_size:
                 organism.energy += self.food_energy
-                # organism.energy_inc(self.food_energy)
-                self.remove_food(food)
+                # print('organism ate a piece of food')
+                self.remove_food(self.food[i])
 
-    def add_organism(self, organism, x: float = None, y: float = None):
+    def add_organism(self,
+                     organism,
+                     x: float | None = None,
+                     y: float | None = None):
         if x is None or y is None:
             x = np.random.uniform(0, self.width)
             y = np.random.uniform(0, self.height)
-        # self.organisms.append((x, y, organism))
-        self.organisms.append(organism)
-        organism.x = x
-        organism.y = y
-        self.organism_idx.insert(len(self.organisms) - 1, (x, y, x, y))
+        self.organisms[self._organism_counter] = organism
+        organism.x = np.array([x, y])
+        self.organism_idx.insert(self._organism_counter, (x, y, x, y))
+        self._organism_counter += 1
+        # print('added new organism')
 
     def remove_organism(self, organism):
-        for i, o in enumerate(self.organisms):
-            if o == organism:
-                self.organisms.pop(i)
-                self.organism_idx.delete(i, (o.x, o.y, o.x, o.y))
+        # TODO: remove by id (which removes cycle to find the id)
+        for i, o in self.organisms.items():
+            if o is organism:
+                # self.organisms.pop(i)
+                del self.organisms[i]
+                # print('removed from the list')
+                self.organism_idx.delete(i, (o.x[0], o.x[1], o.x[0], o.x[1]))
+                # print('removed from index tree')
                 break
 
     def organism_result_to_coordinates(
@@ -105,20 +129,29 @@ class Simple2DContinuousEnvironment:
         Raises:
             No specific exceptions are raised.
         """
-        i, o = next(
-            (i, o) for i, o in enumerate(self.organisms) if o == organism)
-        x = o.x
-        y = o.y
-        dx, dy = result
+        i, o = next((i, o) for i, o in self.organisms.items() if o is organism)
+        x = organism.x[0]
+        y = organism.x[1]
+        self.organism_idx.delete(i, (x, y, x, y))
+        v = organism.v
+        a = organism.a
+        theta = organism.r
+        dtheta, da = result.reshape((2, ))
+        dtheta = max(-MAX_DTHETA, min(MAX_DTHETA, dtheta))
+        a = a + da
+        v = v + a
+        v = max(-MAX_VELOCITY, min(MAX_VELOCITY, v))
+        theta = theta + dtheta
+        dx = v * np.cos(theta)
+        dy = v * np.sin(theta)
         x += dx
         y += dy
         x = np.clip(x, 0, self.width)
         y = np.clip(y, 0, self.height)
-        self.organism_idx.delete(i, (x, y, x, y))
-        # self.organisms[i] = (x, y, organism)
-        # self.organisms[i] = organism
-        organism.x = x
-        organism.y = y
+        organism.x = np.array([x, y]).reshape((2, ))
+        organism.r = theta
+        organism.v = v
+        organism.a = a
         self.organism_idx.insert(i, (x, y, x, y))
         return x, y
 
@@ -138,31 +171,23 @@ class Simple2DContinuousEnvironment:
             No specific exceptions are raised.
         """
         # find the organism's position
-        i, o = next(
-            (i, o) for i, o in enumerate(self.organisms) if o == organism)
-        x = o.x
-        y = o.y
+        i, o = next((i, o) for i, o in self.organisms.items() if o is organism)
         # get nearby organisms from the rtree
-        vision_range = 10
         organisms = [
-            self.organisms[i]
-            for i in self.organism_idx.intersection((x - vision_range,
-                                                     y - vision_range,
-                                                     x + vision_range,
-                                                     y + vision_range))
+            self.organisms[i] for i in self.organism_idx.intersection((
+                o.x[0] - self.vision_range, o.x[1] - self.vision_range,
+                o.x[0] + self.vision_range, o.x[1] + self.vision_range))
+        ]
+        food = [
+            self.food[i]
+            for i in self.food_idx.intersection((o.x[0] - self.vision_range,
+                                                 o.x[1] - self.vision_range,
+                                                 o.x[0] + self.vision_range,
+                                                 o.x[1] + self.vision_range))
         ]
         # eliminate the target organism to compute matrix for
         organisms = list(filter(lambda os: os is not organism, organisms))
-        print('organisms', organisms)
-        vision_distance = 10
-        vision_matrix = sector_vision(
-            (x, y),
-            organisms,
-            vision_distance,
-            self._distance_sectors,
-            self._angle_sectors,
-        )
-        return vision_matrix
+        return self._vision(organism, organisms, food)
 
     def tick(self):
         """
@@ -178,68 +203,115 @@ class Simple2DContinuousEnvironment:
         Returns:
             None
         """
-        for organism in self.organisms:
+        for organism in list(self.organisms.values()):
             self.detect_collision(organism)
             result = organism.evaluate(self.to_organism_input(organism))
-            print('input shape', self.to_organism_input(organism).shape)
-            print('result shape', result.shape)
+            # print('input shape', self.to_organism_input(organism).shape)
+            # print('result shape', result.shape)
             self.organism_result_to_coordinates(organism, result)
+            if not organism.is_alive:
+                self.remove_organism(organism)
         # add food with some probability
-        if np.random.rand() < self._food_appearance_prob:
+        food_to_spawn = np.random.exponential(self._food_appearance_prob)
+        for _ in range(int(food_to_spawn)):
             self.add_food()
 
 
-def sector_vision(
-    organism_coordinates: tuple[float, float],
-    organisms: List[Organism],
-    distance: float,
-    distance_sectors: int = 6,
-    angle_sectors: int = 6,
-):
-    organism_coordinates = np.array(organism_coordinates)
-    metric = np.linalg.norm
+class SectorVision(Vision):
 
-    def to_angle(x):
-        return np.arctan2(*(x - organism_coordinates))
+    def __init__(self,
+                 distance: float = 1.,
+                 distance_sectors: int = 6,
+                 angle_sectors: int = 6) -> None:
+        self._distance = distance
+        self._distance_sectors = distance_sectors
+        self._angle_sectors = angle_sectors
 
-    distances = map(
-        lambda o: metric(organism_coordinates - np.array([o.x, o.y])),
-        organisms)
+    @property
+    def organism_input_shape(self):
+        return self._distance_sectors * self._angle_sectors
 
-    angles = map(lambda o: to_angle(np.array([o.x, o.y])), organisms)
-    # get only non-negative angles [0. 2pi]
-    list(angles)
-    # angles normalization to [0, 1]
-    angles = np.fromiter(
-        map(lambda x: 2 * np.pi + x if x < 0 else x, angles),
-        dtype=np.float64,
-    ) / (2 * np.pi)
-    # angles /= 2 * np.pi
+    def __call__(self, target: Organism, organisms: list[Organism],
+                 food: list[tuple[float, float]]) -> np.ndarray:
+        organism_coordinates = target.x
 
-    encoding_matrix = np.zeros((distance_sectors, angle_sectors))
+        def to_angle(x):
+            return np.arctan2(*(x - organism_coordinates).T)
 
-    # compute the vision matrix
-    dist_boundaries = np.linspace(0, distance, distance_sectors)
-    angle_boundaries = np.linspace(0, 1, angle_sectors)
-    for d, a in zip(distances, angles):
-        sector = np.searchsorted(dist_boundaries, d)
-        angle = np.searchsorted(angle_boundaries, a)
-        encoding_matrix[sector, angle] = 0.5  # set .5 for as other organisms
-    return encoding_matrix.reshape((distance_sectors * angle_sectors, 1))
+        organisms_coordinates = np.array([o.x for o in organisms])
+        food = np.array(food)
+
+        distances_to_organisms = np.linalg.norm(
+            organism_coordinates - organisms_coordinates,
+            axis=1) if len(organisms_coordinates) > 0 else np.array([])
+        distances_to_food = np.linalg.norm(
+            organism_coordinates -
+            food, axis=1) if len(food) > 0 else np.array([])
+
+        angles_to_organisms = to_angle(organisms_coordinates) if len(
+            organisms_coordinates) > 0 else np.array([])
+        angles_to_food = to_angle(food) if len(food) > 0 else np.array([])
+
+        angles_to_organisms = np.where(angles_to_organisms < 0,
+                                       2 * np.pi + angles_to_organisms,
+                                       angles_to_organisms) / (2 * np.pi)
+        angles_to_food = np.where(angles_to_food < 0, 2 * np.pi +
+                                  angles_to_food, angles_to_food) / (2 * np.pi)
+
+        encoding_matrix = np.zeros(
+            (self._distance_sectors, self._angle_sectors))
+
+        dist_boundaries = np.linspace(0, self._distance,
+                                      self._distance_sectors)
+        angle_boundaries = np.linspace(0, 1, self._angle_sectors)
+
+        # other organisms vision
+        # dist_indices = np.searchsorted(dist_boundaries, distances_to_organisms) - 1
+        # angle_indices = np.searchsorted(angle_boundaries, angles_to_organisms) - 1
+        # encoding_matrix[dist_indices, angle_indices] = -1
+        # food vision
+        dist_indices = np.searchsorted(dist_boundaries, distances_to_food) - 1
+        angle_indices = np.searchsorted(angle_boundaries, angles_to_food) - 1
+        encoding_matrix[dist_indices, angle_indices] = 1
+
+        return encoding_matrix.reshape(
+            (self._distance_sectors * self._angle_sectors, 1))
 
 
-def distance_point_line(point, line):
-    """Calculate the distance from a point to a line segment."""
-    line_start = line[0]
-    line_end = line[1]
-    v = line_end - line_start
-    w = point - line_start
-    c1 = np.dot(w, v)
-    c2 = np.dot(v, v)
-    if c1 <= 0:
-        return np.linalg.norm(point - line_start)
-    if c2 <= c1:
-        return np.linalg.norm(point - line_end)
-    b = c1 / c2
-    pb = line_start + b * v
-    return np.linalg.norm(point - pb)
+class NearestFoodParticleVision(Vision):
+
+    def __init__(self) -> None:
+        pass
+
+    @property
+    def organism_input_shape(self):
+        return 2
+
+    def __call__(self, target: Organism, organisms: list[Organism],
+                 food: list[tuple[float, float]]) -> np.ndarray:
+        if not food:
+            return np.array([[0], [0]])
+        f = np.array(food)
+        # define nearest food particle
+        distances = np.linalg.norm(target.x - f, axis=1)
+        min_distance_idx = distances.argmin()
+        angle = np.arctan2(*(f[min_distance_idx] - target.x))
+        direction = angle - target.r
+        return np.array([[distances[min_distance_idx]], [direction]])
+
+
+# def distance_point_line(point, line):
+#     """Calculate the distance from a point to a line segment."""
+#     line_start = line[0]
+#     line_end = line[1]
+#     v = line_end - line_start
+#     w = point - line_start
+#     c1 = np.dot(w, v)
+#     c2 = np.dot(v, v)
+#     if c1 <= 0:
+#         return np.linalg.norm(point - line_start)
+#     if c2 <= c1:
+#         return np.linalg.norm(point - line_end)
+#     b = c1 / c2
+#     pb = line_start + b * v
+#     return np.linalg.norm(point - pb)

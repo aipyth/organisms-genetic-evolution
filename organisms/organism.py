@@ -8,17 +8,18 @@ class Organism:
 
     def __init__(
         self,
-        x: float | None = None,
-        y: float | None = None,
-        r: float | None = None,
-        genome: list[np.ndarray] | None = None,
+        r: float = 0.0,
+        genome: list[np.ndarray] = [],
     ):
-        self.x = x
-        self.y = y
+        # self._x = np.array([0, 0])
+        self.x = np.array([0, 0])
         self.r = r
-        self.genome = genome or None
+        self.v = 0
+        self.a = 0
+        self.genome = genome
         self._activation_function = np.tanh
-        self._energy = 25
+        self._energy = 5
+        # self._energy = 25
         self._age = 0
         self._size = None
         self._name = utils.generate_name(random.randint(1, 4))
@@ -50,7 +51,7 @@ class Organism:
     @energy.setter
     def energy(self, value):
         """Increases the amount of energy in the organism."""
-        self._energy += value if value > 0 else 0
+        self._energy += max(value, 0)
 
     def set_genome(self, genome: list[tuple[np.ndarray, np.ndarray]]):
         self.genome = genome
@@ -58,7 +59,7 @@ class Organism:
 
     def set_genome_size(self, size: list[int]):
         self._size = size
-        if self.genome is None:
+        if self.genome is None or len(self.genome) == 0:
             mu = 0
             sigma = 1
             # initialize weights and bias
@@ -73,7 +74,7 @@ class Organism:
 
     @property
     def is_alive(self):
-        return self._energy > 0
+        return self._energy > -1
 
     @property
     def age(self):
@@ -88,10 +89,12 @@ class Organism:
         # though the movement is mapped to environment bounds and physics
         # we will neglect this fact for now and assume that the energy
         # is wasted by fact of organism's thinking and commands
-        decrease_by = 1
-        self._energy = self._energy - decrease_by if self.is_alive else self._energy
+        decrease_by = 0.08
+        # self._energy = self._energy - decrease_by if self.is_alive else self._energy
+        self._energy = self._energy - decrease_by
         self._age += 1
-        return movement * (self._energy > 0)
+        # return movement * (self._energy > 0)
+        return movement
 
 
 if __name__ == "__main__":
