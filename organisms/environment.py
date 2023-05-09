@@ -1,5 +1,6 @@
 from typing import Any, List
 import numpy as np
+import pandas as pd
 from rtree import index
 from organism import Organism
 
@@ -62,10 +63,10 @@ class Simple2DContinuousEnvironment:
                 self.food_idx.delete(i, (x, y, x, y))
                 break
 
-    def detect_collision(self, organism):
+    def detect_collision(self, organism) -> pd.DataFrame:
         """Check for collision with food and increase energy if collision occurs."""
         # get organism's coordinates
-        o = next(o for i, o in self.organisms.items() if o == organism)
+        i, o = next((i, o) for i, o in self.organisms.items() if o == organism)
         pos = o.x
         # get all food in a region
         foods = [
@@ -76,12 +77,20 @@ class Simple2DContinuousEnvironment:
                                                     o.x[1] +
                                                     self.vision_range))
         ]
+        stats = pd.DataFrame(
+            [], columns=['organism_id', 'food_location', 'energy_taken'])
         for i in foods:
             if np.linalg.norm(np.array(self.food[i]) -
                               o.x) <= self.food_size + self.organism_size:
+                stats.append({
+                    'organism_id': i,
+                    'food_location': self.food[i],
+                    'energy_taken': self.food_energy,
+                })
                 organism.energy += self.food_energy
                 # print('organism ate a piece of food')
                 self.remove_food(self.food[i])
+        return stats
 
     def add_organism(self,
                      organism,
@@ -203,8 +212,12 @@ class Simple2DContinuousEnvironment:
         Returns:
             None
         """
+        eaten_stats = pd.DataFrame(
+            [], columns=['organism_id', 'food_location', 'energy_taken'])
         for organism in list(self.organisms.values()):
-            self.detect_collision(organism)
+            eaten_stats = pd.concat(
+                [eaten_stats, self.detect_collision(organism)],
+                ignore_index=False)
             result = organism.evaluate(self.to_organism_input(organism))
             # print('input shape', self.to_organism_input(organism).shape)
             # print('result shape', result.shape)
@@ -215,6 +228,7 @@ class Simple2DContinuousEnvironment:
         food_to_spawn = np.random.exponential(self._food_appearance_prob)
         for _ in range(int(food_to_spawn)):
             self.add_food()
+        return eaten_stats
 
 
 class SectorVision(Vision):

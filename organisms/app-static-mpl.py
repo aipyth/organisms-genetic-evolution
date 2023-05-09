@@ -24,7 +24,18 @@ FOOD_SIZE = 0.008
 ORGANISM_VISION_RANGE = 0.1
 
 TIMEGEN = str(datetime.now())
-os.mkdir(TIMEGEN)
+
+RESULTS_DIR = 'results/'
+FRAMES_DIR = 'frames/'
+ORGANISMS_LOCATIONS_FILE = 'organisms_locations.csv'
+FOOD_LOCATIONS_FILE = 'food_locations.csv'
+EATEN_FOOD_FILE = 'eaten_food.csv'
+
+# create the results dir with current timestamp
+os.mkdir(os.path.join(RESULTS_DIR, TIMEGEN))
+os.chdir(os.path.join(RESULTS_DIR, TIMEGEN))
+# and create the directory for frames in png
+os.mkdir(FRAMES_DIR)
 
 
 def main():
@@ -68,40 +79,49 @@ def main():
     for _ in range(np.random.randint(ORGANISMS_NUM, ORGANISMS_NUM * 2)):
         env.add_food()
 
-    organisms_df = pd.DataFrame(columns=["x", "y", "name", "iteration"])
-    food_df = pd.DataFrame(columns=["x", "y", "name", "iteration"])
+    organisms_loc_df = pd.DataFrame(
+        [], columns=['index', "x", "y", "name", "iteration"])
+    food_loc_df = pd.DataFrame(
+        [], columns=['index', "x", "y", "name", "iteration"])
+    eaten_stats = pd.DataFrame(
+        [],
+        columns=['organism_id', 'food_location', 'energy_taken', 'iteration'])
     with tqdm(total=ITERATIONS, desc="Simulating organisms") as pbar:
-        # for i in tqdm(range(ITERATIONS), desc="Simulating organisms"):
         for i in range(ITERATIONS):
             # perform one step in time
-            env.tick()
+            eaten_on_step = env.tick()
 
+            # evolution
             if i % GENERATION_TIME == 0 and i != 0:
                 next_organisms = ev(list(env.organisms.values()))
-                # print(f'next organisms population {len(next_organisms)}')
                 for org in next_organisms:
                     if org not in env.organisms.values():
-                        # print('adding new organism from evolution')
                         env.add_organism(org)
                 generation += 1
 
             # store organisms and food locations
-            organisms_df = add_locations_record(env.organisms.values(),
-                                                organisms_df,
-                                                i,
-                                                generation=generation,
-                                                concatenate=True)
-            food_df = add_locations_record(env.food.values(),
-                                           food_df,
-                                           i,
-                                           "food",
-                                           concatenate=True)
+            organisms_loc_df = add_locations_record(env.organisms,
+                                                    organisms_loc_df,
+                                                    i,
+                                                    generation=generation,
+                                                    concatenate=True)
+            food_loc_df = add_locations_record(env.food,
+                                               food_loc_df,
+                                               i,
+                                               name="food",
+                                               concatenate=True)
+            eaten_on_step['iteration'] = i
+            eaten_stats = pd.concat([eaten_stats, eaten_on_step],
+                                    ignore_index=True)
             pbar.set_postfix({
                 "Number of organisms": len(env.organisms),
                 "Gen": generation,
             })
             pbar.update(1)
-            plot_frame(organisms_df, food_df, i)
+            plot_frame(organisms_loc_df, food_loc_df, i)
+    organisms_loc_df.to_csv(ORGANISMS_LOCATIONS_FILE, index=False)
+    food_loc_df.to_csv(FOOD_LOCATIONS_FILE, index=False)
+    eaten_stats.to_csv(EATEN_FOOD_FILE, index=False)
 
 
 def add_locations_record(source,
@@ -111,11 +131,12 @@ def add_locations_record(source,
                          generation=None,
                          concatenate=True):
     records = []
-    for r in source:
+    for i, r in source:
         x = r[0] if isinstance(r, tuple) else r.x[0]
         y = r[1] if isinstance(r, tuple) else r.x[1]
         theta = r.r if isinstance(r, Organism) else 0
         record = {
+            "index": i,
             "x": x,
             "y": y,
             "theta": theta,
@@ -123,6 +144,11 @@ def add_locations_record(source,
             "iteration": iteration,
             "generation": generation,
         }
+        if isinstance(r, Organism):
+            record["v"] = r.v
+            record["a"] = r.a
+            record["energy"] = r.energy
+            record['age'] = r.age
         records.append(record)
 
     new_df = pd.DataFrame(records)
@@ -205,10 +231,7 @@ def plot_frame(organisms_df, food_df, i):
     frame.axes.get_xaxis().set_ticks(np.linspace(0, WIDTH, 9))
     frame.axes.get_yaxis().set_ticks(np.linspace(0, HEIGHT, 9))
 
-    plt.figtext(
-        0.025, 0.95, f"Generation:\
-                {organisms['generation'].max()}-{organisms['generation'].min()}"
-    )
+    plt.figtext(0.025, 0.95, f"Generation: {organisms['generation'].max()}")
     plt.figtext(0.025, 0.90, f"Time: {i}")
 
     plt.savefig(f"{TIMEGEN}/{i}.png", dpi=100)
@@ -216,8 +239,9 @@ def plot_frame(organisms_df, food_df, i):
 
 
 def generate_video():
-    os.chdir(TIMEGEN)
-    os.system(f"ffmpeg -framerate 10 -i %d.png output.mp4")
+    framerate = 24
+    os.system(
+        f"ffmpeg -framerate {framerate} -i {FRAMES_DIR}%d.png output.mp4")
 
 
 if __name__ == "__main__":
