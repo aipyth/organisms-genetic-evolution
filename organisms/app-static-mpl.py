@@ -12,16 +12,16 @@ from organism import Organism
 import evolve
 import encode
 
-ORGANISMS_NUM = 2
-WIDTH = 2
-HEIGHT = 2
-ITERATIONS = 700
+ORGANISMS_NUM = 6
+WIDTH = 4
+HEIGHT = 4
+ITERATIONS = 400
 GENERATION_TIME = 20  # time for each generation to live
 
 ORGANISM_SIZE = 0.018
 FOOD_SIZE = 0.008
 
-ORGANISM_VISION_RANGE = 0.1
+ORGANISM_VISION_RANGE = 0.4
 
 TIMEGEN = str(datetime.now())
 
@@ -30,6 +30,7 @@ FRAMES_DIR = 'frames/'
 ORGANISMS_LOCATIONS_FILE = 'organisms_locations.csv'
 FOOD_LOCATIONS_FILE = 'food_locations.csv'
 EATEN_FOOD_FILE = 'eaten_food.csv'
+ORGANISMS_STATS_FILE = 'organisms_stats.csv'
 
 # create the results dir with current timestamp
 os.mkdir(os.path.join(RESULTS_DIR, TIMEGEN))
@@ -55,7 +56,7 @@ def main():
                                         food_appearance_prob=1)
     ev = evolve.Evolve(
         encoding=encode.RealValued(),
-        selection=evolve.TruncationSelection(n=2),
+        selection=evolve.TruncationSelection(n=4),
         crossover=evolve.SBXCrossover(mu=5),  # type: ignore
         mutation=evolve.GaussianMutation(mu=0, sigma=0.1,
                                          p=0.3),  # type: ignore
@@ -72,9 +73,6 @@ def main():
         org = Organism()
         org.set_genome_size(genome_size)
         env.add_organism(org)
-        # env.add_organism(org, 0.5, 0.5)
-
-    # print('organisms after added to the env', env.organisms)
 
     for _ in range(np.random.randint(ORGANISMS_NUM, ORGANISMS_NUM * 2)):
         env.add_food()
@@ -86,6 +84,11 @@ def main():
     eaten_stats = pd.DataFrame(
         [],
         columns=['organism_id', 'food_location', 'energy_taken', 'iteration'])
+    organisms_stats = pd.DataFrame([],
+                                   columns=[
+                                       'id', 'name', 'genome', 'age',
+                                       'parents', 'iteration', 'energy'
+                                   ])
     with tqdm(total=ITERATIONS, desc="Simulating organisms") as pbar:
         for i in range(ITERATIONS):
             # perform one step in time
@@ -113,25 +116,56 @@ def main():
             eaten_on_step['iteration'] = i
             eaten_stats = pd.concat([eaten_stats, eaten_on_step],
                                     ignore_index=True)
+            organisms_stats = pd.concat([
+                organisms_stats,
+                pull_organisms_stats(env.organisms, iteration=i)
+            ],
+                                        ignore_index=True)
             pbar.set_postfix({
                 "Number of organisms": len(env.organisms),
                 "Gen": generation,
             })
             pbar.update(1)
+            # TODO: run plot_frame in a separate thread
             plot_frame(organisms_loc_df, food_loc_df, i)
     organisms_loc_df.to_csv(ORGANISMS_LOCATIONS_FILE, index=False)
     food_loc_df.to_csv(FOOD_LOCATIONS_FILE, index=False)
     eaten_stats.to_csv(EATEN_FOOD_FILE, index=False)
+    organisms_stats.to_csv(ORGANISMS_STATS_FILE, index=False)
 
 
-def add_locations_record(source,
+def pull_organisms_stats(organisms: dict[int, Organism], iteration: int):
+    df = pd.DataFrame([],
+                      columns=[
+                          'id', 'name', 'genome', 'age', 'parents',
+                          'iteration', 'energy'
+                      ])
+    for i, o in organisms.items():
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame({
+                    'id': i,
+                    'name': o.name,
+                    'genome': o.genome,
+                    'age': o.age,
+                    # 'parent': o._parents,
+                    'iteration': iteration,
+                    'energy': o.energy,
+                })
+            ],
+            ignore_index=True)
+    return df
+
+
+def add_locations_record(source: dict,
                          df,
                          iteration,
                          name=None,
                          generation=None,
                          concatenate=True):
     records = []
-    for i, r in source:
+    for i, r in source.items():
         x = r[0] if isinstance(r, tuple) else r.x[0]
         y = r[1] if isinstance(r, tuple) else r.x[1]
         theta = r.r if isinstance(r, Organism) else 0
@@ -180,8 +214,6 @@ def plot_organism(x1, y1, theta, ax):
     x2 = np.cos(theta) * tail_len + x1
     y2 = np.sin(theta) * tail_len + y1
 
-    # print(theta, [x1, x2], [y1, y2])
-
     ax.add_line(
         lines.Line2D([x1, x2], [y1, y2],
                      color='darkgreen',
@@ -212,10 +244,6 @@ def plot_frame(organisms_df, food_df, i):
 
     organisms = organisms_df[organisms_df["iteration"] == i]
     food = food_df[food_df["iteration"] == i]
-
-    # print(organisms)
-
-    # organisms.map(lambda o: plot_organism(o['x'], o['y'], 0, ax))
     # PLOT ORGANISMS
     for ind in organisms.index:
         plot_organism(organisms["x"][ind], organisms["y"][ind],
@@ -234,7 +262,7 @@ def plot_frame(organisms_df, food_df, i):
     plt.figtext(0.025, 0.95, f"Generation: {organisms['generation'].max()}")
     plt.figtext(0.025, 0.90, f"Time: {i}")
 
-    plt.savefig(f"{TIMEGEN}/{i}.png", dpi=100)
+    plt.savefig(f"{FRAMES_DIR}/{i}.png", dpi=100)
     plt.close()
 
 

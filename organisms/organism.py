@@ -51,7 +51,7 @@ class Organism:
     @energy.setter
     def energy(self, value):
         """Increases the amount of energy in the organism."""
-        self._energy += max(value, 0)
+        self._energy = max(value, self._energy)
 
     def set_genome(self, genome: list[tuple[np.ndarray, np.ndarray]]):
         self.genome = genome

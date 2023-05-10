@@ -66,29 +66,30 @@ class Simple2DContinuousEnvironment:
     def detect_collision(self, organism) -> pd.DataFrame:
         """Check for collision with food and increase energy if collision occurs."""
         # get organism's coordinates
-        i, o = next((i, o) for i, o in self.organisms.items() if o == organism)
-        pos = o.x
+        organism_id, o = next(
+            (i, o) for i, o in self.organisms.items() if o == organism)
         # get all food in a region
-        foods = [
-            food
-            for food in self.food_idx.intersection((o.x[0] - self.vision_range,
-                                                    o.x[1] - self.vision_range,
-                                                    o.x[0] + self.vision_range,
-                                                    o.x[1] +
-                                                    self.vision_range))
-        ]
+        foods = list(
+            self.food_idx.intersection((
+                o.x[0] - self.vision_range,
+                o.x[1] - self.vision_range,
+                o.x[0] + self.vision_range,
+                o.x[1] + self.vision_range,
+            )))
         stats = pd.DataFrame(
             [], columns=['organism_id', 'food_location', 'energy_taken'])
         for i in foods:
             if np.linalg.norm(np.array(self.food[i]) -
                               o.x) <= self.food_size + self.organism_size:
-                stats.append({
-                    'organism_id': i,
-                    'food_location': self.food[i],
-                    'energy_taken': self.food_energy,
-                })
+                stats = pd.concat([
+                    stats,
+                    pd.DataFrame({
+                        'organism_id': organism_id,
+                        'food_location': np.array(self.food[i]),
+                        'energy_taken': self.food_energy,
+                    })
+                ])
                 organism.energy += self.food_energy
-                # print('organism ate a piece of food')
                 self.remove_food(self.food[i])
         return stats
 
