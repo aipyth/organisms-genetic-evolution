@@ -1,0 +1,48 @@
+%%%% У даний файл додавайте всі необхідні вам додаткові пакети, наприклад...
+
+
+%%%% Диаграммы
+%\usepackage{tikz}                      % !!! невідомий конфлікт з якимось іншим пакетом
+
+% Пакети для кольорових текстів (необхідні для команди \todo)
+%\usepackage{xcolor}                     % !!! невідомий конфлікт з якимось іншим пакетом
+%\usepackage{colortbl}
+
+\usepackage{euscript}   %ещё один красивый шрифт \EuScript
+
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+
+% force display math for all environements
+\everymath{\displaystyle}
+
+\usepackage{witharrows}
+
+% Math stuff
+\usepackage{amsmath, amsfonts, mathtools, amsthm, amssymb}
+% Fancy script capitals
+\usepackage{mathrsfs}
+\usepackage{cancel}
+% Bold math
+\usepackage{bm}
+
+%\usepackage[normalem]{ulem} % для подчёркиваний uline
+%\ULdepth = 0.16em % расстояние от линии до текста выше/ниже
+
+% Todonotes and inline notes in fancy boxes
+\usepackage{todonotes}
+\usepackage{tcolorbox}
+
+% Figure support https://github.com/gillescastel/inkscape-figures
+\usepackage{import}
+\usepackage{xifthen}
+\usepackage{pdfpages}
+\usepackage{transparent}
+\newcommand{\incfig}[1]{%
+    \def\svgwidth{\columnwidth}
+    \import{./figures/}{#1.pdf_tex}
+}

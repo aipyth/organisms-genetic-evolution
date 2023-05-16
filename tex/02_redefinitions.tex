@@ -1,0 +1,93 @@
+%%% У даному файлі визначайте всі необхідні вам нові команди TeX
+%%% або робіть перевизначення існуючих, наприклад...
+
+% Перевизначення символу порожньої множини та знаків "більше-дорівнює", "менше-дорівнює" на прийняті у нас
+\let\oldemptyset\emptyset
+\let\emptyset\varnothing
+\let\geq\geqslant
+\let\leq\leqslant
+
+% Визначення нових математичних команд
+% \newcommand*{\binsp}[1]{\ensuremath \left\{0, 1\right\}^{#1}}       % {0, 1}^m
+% \newcommand*{\xor}{\ensuremath \oplus}                              % \xor = (+)
+% \newcommand*{\GF}[1]{\ensuremath \mathbb F_{#1}}                    % F_n
+% \newcommand*{\GFgroup}[1]{\ensuremath \mathbb F^{*}_{#1}}           % F^*_n
+% \newcommand*{\Zring}[1]{\ensuremath \mathbb Z_{#1}}                 % Z_n
+% \newcommand*{\Zgroup}[1]{\ensuremath \mathbb Z^{*}_{#1}}            % Z^*_n
+% \newcommand*{\Jset}[1]{\ensuremath \mathbb J_{#1}}                  % J_n
+% \newcommand*{\Qset}[1]{\ensuremath \mathbb Q_{#1}}                  % Q_n
+% \newcommand*{\PQset}[1]{\ensuremath \widetilde{\mathbb Q}_{#1}}     % Q~_n
+% \newcommand*{\cyclic}[1]{\ensuremath \left\langle {#1} \right\rangle}                  % <g>
+% \newcommand*{\Legendre}[2]{\ensuremath \left( \frac{#1}{#2} \right)}  % символ Лежандра/Якоби
+% \newcommand*{\compinv}[1]{\ensuremath {#1}^{\left\langle -1 \right\rangle}}  % обратный по композиции
+
+% Інший спосіб визначення математичного оператору
+% \DeclareMathOperator{\ord}{ord}
+% \DeclareMathOperator{\lcm}{lcm}
+% \DeclareMathOperator{\Li}{Li}
+% \DeclareMathOperator{\Coef}{Coef}
+% \DeclareMathOperator{\Log}{Log}
+% \DeclareMathOperator{\Exp}{Exp}
+% \DeclareMathOperator{\Res}{Res}
+% \DeclareMathOperator{\charact}{char}
+% \DeclareMathOperator{\Sym}{Sym}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand\N{\ensuremath{\mathbb{N}}}
+\newcommand\R{\ensuremath{\mathbb{R}}}
+\newcommand\Z{\ensuremath{\mathbb{Z}}}
+\renewcommand\O{\ensuremath{\emptyset}}
+\newcommand\Q{\ensuremath{\mathbb{Q}}}
+
+% Put x \to \infty below \lim
+\let\svlim\lim\def\lim{\svlim\limits}
+
+%Make implies and impliedby shorter
+\let\implies\Rightarrow
+\let\impliedby\Leftarrow
+\let\iff\Leftrightarrow
+\let\epsilon\varepsilon
+
+% hide parts
+\newcommand\hide[1]{}
+
+
+% Environments
+\makeatother
+% For box around Definition, Theorem, \ldots
+\usepackage{mdframed}
+\mdfsetup{skipabove=1em,skipbelow=0em}
+\theoremstyle{definition}
+% \newmdtheoremenv[nobreak=true]{definition}{Definition}
+\newmdtheoremenv[nobreak=true]{characteristic}{Characteristic}
+% \newmdtheoremenv[nobreak=true]{corollary}{Corollary}
+% \newmdtheoremenv[nobreak=true]{lemma}{Lemma}
+% \newmdtheoremenv[nobreak=true]{proposition}{Proposition} % твердження
+\newmdtheoremenv[nobreak=true]{law}{Law}
+\newmdtheoremenv[nobreak=true]{postulate}{Postulate}
+\newtheorem*{consequence}{Consequence}
+\newtheorem*{practical}{Practical}
+\newtheorem*{terminology}{Terminology}
+% \newtheorem*{example}{Example}
+
+% \newmdtheoremenv[nobreak=true]{definition}{Definition}
+\newtheorem*{eg}{Example}
+\newtheorem*{notation}{Notation}
+\newtheorem*{previouslyseen}{As previously seen}
+% \newtheorem*{remark}{Remark}
+% \newtheorem*{problem}{Problem}
+\newtheorem*{observe}{Observe}
+\newtheorem*{property}{Property}
+\newtheorem*{intuition}{Intuition}
+\newmdtheoremenv[nobreak=true]{prop}{Proposition}
+% \newmdtheoremenv[nobreak=true]{theorem}{Theorem}
+% \newmdtheoremenv[nobreak=true]{corollary}{Corollary}
+
+% End example and intermezzo environments with a small diamond (just like proof
+% environments end with a small square)
+\usepackage{etoolbox}
+\AtEndEnvironment{vb}{\null\hfill$\diamond$}%
+\AtEndEnvironment{intermezzo}{\null\hfill$\diamond$}%
+
+
