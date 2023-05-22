@@ -119,11 +119,91 @@ def get_energy_traces_over_generation(org_loc,
         #  marker_color='rgba(255, 50, 0, 100)',
         legendgroup=legendgroup,
         hovertemplate=hovertemplate,
-        line=dict(width=4),
+        line=dict(width=3),
     )
 
     return energy_mean, energy_max, energy_max_ma
 
 
-def get_worst_best_energy_traces_over_time(org_loc, legendgroup=''):
-    pass
+def get_highest_lowest_energy_traces_over_generation(
+        org_loc, legendgroup='', hovertemplate='x: %{x}; y: %{y}'):
+    org_loc_sorted = org_loc.sort_values(['index', 'iteration'])
+    org_loc_sorted['energy_diff'] = org_loc_sorted.groupby(
+        'index')['energy'].diff()
+
+    org_energy_mean = org_loc_sorted.groupby(['index',
+                                              'generation'])['energy'].mean()
+    organism_with_highest_energy_per_gen = org_energy_mean.groupby(
+        'generation').idxmax()
+    organism_with_lowest_energy_per_gen = org_energy_mean.groupby(
+        'generation').idxmin()
+    # Get the energy levels of the organisms with the highest and lowest mean energy
+    highest_energy_levels = org_energy_mean[
+        organism_with_highest_energy_per_gen].groupby('generation').mean()
+    lowest_energy_levels = org_energy_mean[
+        organism_with_lowest_energy_per_gen].groupby('generation').mean()
+
+    lowest_energy_level_trace = go.Scatter(x=lowest_energy_levels.index,
+                                           y=lowest_energy_levels.values,
+                                           mode='lines',
+                                           name='Lowest Energy',
+                                           line=dict(color='firebrick'),
+                                           legendgroup=legendgroup,
+                                           hovertemplate=hovertemplate,
+                                           fill='tozeroy')
+
+    highest_energy_level_trace = go.Scatter(x=highest_energy_levels.index,
+                                            y=highest_energy_levels.values,
+                                            mode='lines',
+                                            name='Highest Energy',
+                                            line=dict(color='royalblue'),
+                                            legendgroup=legendgroup,
+                                            hovertemplate=hovertemplate,
+                                            fill='tonexty')
+    return lowest_energy_level_trace, highest_energy_level_trace
+
+
+def get_food_to_movement_ratio_traces(
+    org_loc,
+    eaten_stats,
+    window=240,
+    legendgroup='',
+    hovertemplate='x: %{x}; y: %{y}',
+):
+    # Calculate the total movements and food acquisitions at each time step
+    movements_per_time = org_loc.groupby(['index', 'iteration']).size()
+    food_acquisitions_per_time = eaten_stats.groupby(
+        ['organism_id', 'iteration']).size()
+
+    movements_per_time.index = movements_per_time.index.set_names(
+        food_acquisitions_per_time.index.names)
+
+    # Calculate the Food-to-Movement ratio at each time step
+    ratio_per_time = movements_per_time / food_acquisitions_per_time
+
+    # Fill in any missing values
+    ratio_per_time = ratio_per_time.fillna(ratio_per_time.max() * 2)
+
+    # Find the organisms with the worst and best Food-to-Movement ratio at each time step
+    worst_ratio = ratio_per_time.groupby('iteration').max().rolling(
+        window).mean()
+    best_ratio = ratio_per_time.groupby('iteration').min().rolling(
+        window).mean()
+
+    worst_ratio_trace = go.Scatter(x=worst_ratio.index,
+                                   y=worst_ratio.values,
+                                   mode='lines',
+                                   name='Worst Ratio',
+                                   legendgroup=legendgroup,
+                                   hovertemplate=hovertemplate,
+                                   line=dict(color='firebrick'))
+
+    best_ratio_trace = go.Scatter(x=best_ratio.index,
+                                  y=best_ratio.values,
+                                  mode='lines',
+                                  name='Best Ratio',
+                                  legendgroup=legendgroup,
+                                  hovertemplate=hovertemplate,
+                                  line=dict(color='royalblue'))
+
+    return worst_ratio_trace, best_ratio_trace
