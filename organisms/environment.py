@@ -4,7 +4,8 @@ import pandas as pd
 from rtree import index
 from organism import Organism
 
-MAX_VELOCITY = 0.01
+MAX_ACCELERATION = 0.05
+MAX_VELOCITY = 0.1
 MAX_DTHETA = 0.2
 
 
@@ -22,14 +23,15 @@ class Vision:
 class Simple2DContinuousEnvironment:
 
     def __init__(self,
-                 width: int,
-                 height: int,
+                 width: float,
+                 height: float,
                  vision: Vision,
                  vision_range: float = 1,
                  organism_size: float = 0.01,
                  food_size: float = 0.03,
                  food_energy: float = 10,
-                 food_appearance_prob: float = 0.2):
+                 food_appearance_number_rate: float = 0.2,
+                 remove_dead_organisms: bool = True):
         self.width = width
         self.height = height
         self.organisms: dict[int, Organism] = {}
@@ -42,8 +44,9 @@ class Simple2DContinuousEnvironment:
         self.food_energy = food_energy
         self.food_size = food_size
         self.organism_size = organism_size
-        self._food_appearance_prob = food_appearance_prob
+        self._food_appearance_prob = food_appearance_number_rate
         self.vision_range = vision_range
+        self._remove_dead_organisms = remove_dead_organisms
 
     def add_food(self):
         # generate random location for the food
@@ -149,13 +152,15 @@ class Simple2DContinuousEnvironment:
         dtheta, da = result.reshape((2, ))
         dtheta = max(-MAX_DTHETA, min(MAX_DTHETA, dtheta))
         a = a + da
-        v = v + a
-        v = max(-MAX_VELOCITY, min(MAX_VELOCITY, v))
+        a = max(-MAX_ACCELERATION, min(MAX_ACCELERATION, a))
+        v = max(-MAX_VELOCITY, min(MAX_VELOCITY, v + a))
+        v = v * (1 / (1 + np.linalg.norm(dtheta)))
         theta = theta + dtheta
         dx = v * np.cos(theta)
         dy = v * np.sin(theta)
         x += dx
         y += dy
+        organism.distance_traveled += np.linalg.norm([dx, dy])
         x = np.clip(x, 0, self.width)
         y = np.clip(y, 0, self.height)
         organism.x = np.array([x, y]).reshape((2, ))
@@ -223,7 +228,7 @@ class Simple2DContinuousEnvironment:
             # print('input shape', self.to_organism_input(organism).shape)
             # print('result shape', result.shape)
             self.organism_result_to_coordinates(organism, result)
-            if not organism.is_alive:
+            if self._remove_dead_organisms and not organism.is_alive:
                 self.remove_organism(organism)
         # add food with some probability
         food_to_spawn = np.random.exponential(self._food_appearance_prob)

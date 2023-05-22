@@ -18,12 +18,15 @@ class Organism:
         self.a = 0
         self.genome = genome
         self._activation_function = np.tanh
-        self._energy = 5
-        # self._energy = 25
+        self._energy = 0
         self._age = 0
         self._size = None
         self._name = utils.generate_name(random.randint(1, 4))
         self._parents = []
+        self._consumed_food_energy = 0
+        self._distance_traveled = 0
+        self._energy_decrease_rate = 0.08
+        self.time = 0
 
     def __str__(self):
         return f"<Organism {[g.shape for g in self.genome]}>"
@@ -51,7 +54,23 @@ class Organism:
     @energy.setter
     def energy(self, value):
         """Increases the amount of energy in the organism."""
+        self._consumed_food_energy += abs(value)
         self._energy = max(value, self._energy)
+
+    @property
+    def consumed_food_energy(self):
+        return self._consumed_food_energy
+
+    @property
+    def distance_traveled(self):
+        return self._distance_traveled
+
+    @distance_traveled.setter
+    def distance_traveled(self, value):
+        self._distance_traveled = max(value, self._distance_traveled)
+
+    def set_energy_decrease_rate(self, energy_decrease_rate: float):
+        self._energy_decrease_rate = energy_decrease_rate
 
     def set_genome(self, genome: list[tuple[np.ndarray, np.ndarray]]):
         self.genome = genome
@@ -74,7 +93,7 @@ class Organism:
 
     @property
     def is_alive(self):
-        return self._energy > -1
+        return self._energy > -5
 
     @property
     def age(self):
@@ -89,7 +108,9 @@ class Organism:
         # though the movement is mapped to environment bounds and physics
         # we will neglect this fact for now and assume that the energy
         # is wasted by fact of organism's thinking and commands
-        decrease_by = 0.08
+
+        # decrease_by = 0.08
+        decrease_by = self._energy_decrease_rate * np.linalg.norm(movement)
         # self._energy = self._energy - decrease_by if self.is_alive else self._energy
         self._energy = self._energy - decrease_by
         self._age += 1
