@@ -93,7 +93,7 @@ genome_shapes = [
 fitness = evolve.EnergyFitness()
 
 generation_time = 80
-generations = 100
+generations = 30
 
 arguments = {
     'start_organism_number': [40],
@@ -107,7 +107,7 @@ arguments = {
     'vision': [vision],
     'food_energy': [2],
     'food_appearance_number_rate': [0.7],
-    'energy_decrease_rate': [0.008],
+    'energy_decrease_rate': [0.09],
     'encoding': [encode.RealValued()],
     'selection': [
         # evolve.TruncationSelection(fitness=fitness, n=10),
@@ -125,7 +125,7 @@ arguments = {
         evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
         evolve.NonUniformMutation(
             b=5, p=0.05,
-            T=80 * 100),  # predefined number of iterations 80 * 60
+            T=generation_time * generations),
         evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
     ],
     'elitism': [20],
@@ -136,7 +136,7 @@ arguments = {
 }
 
 generation_time_steady = 2  # as we are using steady-state GA in this implementation we need to set a small number of generation_time
-iterations_steady = 8000
+iterations_steady = 2400
 
 arguments_steady = {
     'start_organism_number': [40],
@@ -150,13 +150,13 @@ arguments_steady = {
     'vision': [vision],
     'food_energy': [2],
     'food_appearance_number_rate': [0.7],
-    'energy_decrease_rate': [0.008],
+    'energy_decrease_rate': [0.09],
     'encoding': [encode.RealValued()],
     'selection': [
         evolve.TruncationSelection(fitness=fitness, n=20),
     ],
     'crossover': [
-        evolve.SBXCrossover(n=8),
+        evolve.SBXCrossover(n=2),
         evolve.ArithmeticCrossover(),
         evolve.BLXCrossover(alpha=0.5),
     ],
@@ -164,7 +164,7 @@ arguments_steady = {
         evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
         evolve.NonUniformMutation(
             b=5, p=0.05,
-            T=80 * 100),  # predefined number of iterations 80 * 60
+            T=iterations_steady),
         evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
     ],
     'elitism': [20],
@@ -175,6 +175,7 @@ arguments_steady = {
 }
 
 if __name__ == '__main__':
+    print('Running evolution with generative GA')
     variations = generate_argument_variations(arguments)
 
     print(f'Total number of configurations (variations): {len(variations)}')
@@ -183,6 +184,7 @@ if __name__ == '__main__':
         print(f'Running sample №{i+1}/{len(variations)}')
         run_organisms_environment(var)
 
+    print('Running evolution with steady-state GA')
     variations_steady = generate_argument_variations(arguments_steady)
 
     print(

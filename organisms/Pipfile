@@ -12,6 +12,7 @@ pandas = "*"
 tqdm = "*"
 rtree = "*"
 matplotlib = "*"
+pyarrow = "*"
 
 [dev-packages]
 yapf = "*"
