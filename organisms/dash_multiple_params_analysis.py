@@ -32,7 +32,7 @@ for record_dir in glob.glob(RESULT_DIR_TEMPLATE):
         'visible': True  # Add a 'visible' key to track dataset visibility
     }
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.CYBORG])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
 metadata_keys = set()
 for dataset in expms.values():
@@ -44,6 +44,8 @@ metadata_value_options = {}
 for key in metadata_keys:
     values_options = []
     for dataset in expms.values():
+        if key not in dataset['metadata']:
+            continue
         values_options.append({
             'label': str(dataset['metadata'].get(key)),
             'value': str(dataset['metadata'].get(key))
