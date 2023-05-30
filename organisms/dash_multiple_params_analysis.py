@@ -80,8 +80,8 @@ app.layout = html.Div(children=[
                                          multi=True,
                                          className='dropdown')
                         ],
-                                 className='m-1 p-2',
-                                 style={'min-width': '400px'}),
+                            className='m-1 p-2',
+                            style={'min-width': '400px'}),
                     ]) for key in metadata_keys
                 ],
                 style={
@@ -105,7 +105,7 @@ app.layout = html.Div(children=[
                                       value=80,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-time-graph',
                                   style={
                                       'display': 'flex',
@@ -121,7 +121,7 @@ app.layout = html.Div(children=[
                                       value=5,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-generation-graph',
                                   style={
                                       'display': 'flex',
@@ -147,7 +147,7 @@ app.layout = html.Div(children=[
                                       value=360,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='food-to-movement-ratio-graph',
                                   style={
                                       'display': 'flex',
@@ -187,6 +187,7 @@ def update_dataset(ev_time_window, ev_generation_window, ftm_window,
     for dataset_name, dataset in expms.items():
         metadata = dataset['metadata']
         hovertemplate = '(%{x} %{y})<br>'
+        hovertemplate += f'{dataset_name}<br>'
         match = True
         for key, values in zip(metadata_keys, filter_values):
             metadata_value = metadata.get(key)

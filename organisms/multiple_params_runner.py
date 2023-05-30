@@ -1,3 +1,4 @@
+from datetime import datetime
 import itertools
 import os
 import shutil
@@ -63,7 +64,8 @@ def generate_results_dir(arguments):
 
 def run_organisms_environment(variation):
     if os.path.exists(variation['results_dir']):
-        variation['results_dir'] += str(time.time())[-3:]
+        # variation['results_dir'] += '-' + str(time.time())[-3:]
+        variation['results_dir'] += '-' + datetime.now()
 
     with contextlib.suppress(Exception):
         os.mkdir(variation['results_dir'])
@@ -85,15 +87,16 @@ vision = environment.SectorVision(
 )
 genome_shapes = [
     [vision.organism_input_shape, 6, 2],
-    # [vision.organism_input_shape, 12, 2],
-    # [vision.organism_input_shape, 12, 6, 2],
-    # [vision.organism_input_shape, 24, 12, 2],
+    [vision.organism_input_shape, 12, 2],
+    [vision.organism_input_shape, 12, 6, 2],
+    [vision.organism_input_shape, 24, 12, 2],
 ]
 
 fitness = evolve.EnergyFitness()
 
-generation_time = 80
-generations = 30
+# generation_time = 80
+generation_time = 60
+generations = 200
 
 arguments = {
     'start_organism_number': [40],
@@ -107,7 +110,7 @@ arguments = {
     'vision': [vision],
     'food_energy': [2],
     'food_appearance_number_rate': [0.7],
-    'energy_decrease_rate': [0.09],
+    'energy_decrease_rate': [0.02],
     'encoding': [encode.RealValued()],
     'selection': [
         # evolve.TruncationSelection(fitness=fitness, n=10),
@@ -115,6 +118,8 @@ arguments = {
         evolve.TruncationSelection(fitness=fitness, n=20),
     ],
     'crossover': [
+        # evolve.SASBXCrossover(alpha=1.1),
+        evolve.SimpleAdaptiveSBXCrossover(alpha=1.1),
         evolve.SBXCrossover(n=2),
         # evolve.SBXCrossover(n=8),
         evolve.ArithmeticCrossover(),
@@ -122,21 +127,22 @@ arguments = {
         # evolve.SBXCrossover(n=12),
     ],
     'mutation': [
-        evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
+        # evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
         evolve.NonUniformMutation(
             b=5, p=0.05,
             T=generation_time * generations),
         evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
     ],
     'elitism': [20],
-    'genome_size':
-    genome_shapes,
+    'genome_size': genome_shapes,
     'food_particles_at_start': [40],
     'remove_dead_organisms': [False],
 }
 
-generation_time_steady = 2  # as we are using steady-state GA in this implementation we need to set a small number of generation_time
-iterations_steady = 2400
+# as we are using steady-state GA in this implementation we need to set a small number of generation_time
+generation_time_steady = 2
+# iterations_steady = 8000
+iterations_steady = generation_time * generations
 
 arguments_steady = {
     'start_organism_number': [40],
@@ -184,12 +190,12 @@ if __name__ == '__main__':
         print(f'Running sample №{i+1}/{len(variations)}')
         run_organisms_environment(var)
 
-    print('Running evolution with steady-state GA')
-    variations_steady = generate_argument_variations(arguments_steady)
+# variations_steady = generate_argument_variations(arguments_steady)
+#
+# print(
+#     f'Total number of configurations (variations): {len(variations_steady)}'
+# )
+# for i, var in enumerate(variations_steady):
+#     print(f'Running sample №{i+1}/{len(variations_steady)}')
+#     run_organisms_environment(var)
 
-    print(
-        f'Total number of configurations (variations): {len(variations_steady)}'
-    )
-    for i, var in enumerate(variations_steady):
-        print(f'Running sample №{i+1}/{len(variations_steady)}')
-        run_organisms_environment(var)

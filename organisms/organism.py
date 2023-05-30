@@ -27,6 +27,8 @@ class Organism:
         self._distance_traveled = 0
         self._energy_decrease_rate = 0.08
         self.time = 0
+        self._eta = None
+        self._sibling = None
 
     def __str__(self):
         return f"<Organism {[g.shape for g in self.genome]}>"
@@ -34,6 +36,22 @@ class Organism:
     def add_parent(self, organism):
         self._parents.append(organism)
         return self
+
+    @property
+    def sibling(self):
+        return self._sibling
+
+    @sibling.setter
+    def sibling(self, value):
+        self._sibling = value
+
+    @property
+    def eta(self):
+        return self._eta
+
+    @eta.setter
+    def eta(self, value):
+        self._eta = value
 
     @property
     def name(self):

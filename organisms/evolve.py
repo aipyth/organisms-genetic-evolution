@@ -1,3 +1,4 @@
+import encodings
 from typing import Any, List, Callable
 from organism import Organism
 import numpy as np
@@ -31,9 +32,26 @@ class Selection:
 
 class Crossover:
 
-    def __call__(self, parent_a: np.ndarray,
-                 parent_b: np.ndarray) -> list[np.ndarray]:
+    def __call__(self, parent_a: Organism,
+                 parent_b: Organism) -> list[Organism]:
         raise NotImplementedError()
+
+    def use_encoding(self, encoding: encode.Encoding):
+        self._encoding = encoding
+
+    def _create_organisms_from_encoding(self, offsprings, parent_a: Organism,
+                                        parent_b: Organism) -> list[Organism]:
+        new_organisms = [Organism() for _ in range(len(offsprings))]
+        new_organisms = [
+            o.add_parent(parent_a).add_parent(parent_b).set_genome_size(
+                parent_a._size) for o in new_organisms
+        ]
+        new_organisms = [
+            new_organisms[i].set_genome(
+                self._encoding.reverse(enc, new_organisms[i]))
+            for i, enc in enumerate(offsprings)
+        ]
+        return new_organisms
 
 
 class Mutation:
@@ -80,6 +98,7 @@ class Evolve:
         self._encoding = encoding
         self._selection = selection
         self._crossover = crossover
+        self._crossover.use_encoding(self._encoding)
         self._mutation = mutation
         self._elitism = elitism
 
@@ -102,20 +121,8 @@ class Evolve:
             j = np.random.randint(0, len(selected))
             parent_a = selected[i]
             parent_b = selected[j]
-            children = self._crossover(self._encoding(parent_a),
-                                       self._encoding(parent_b))
-
-            new_organisms = [Organism() for _ in range(len(children))]
-            new_organisms = [
-                o.add_parent(parent_a).add_parent(parent_b).set_genome_size(
-                    parent_a._size) for o in new_organisms
-            ]
-            new_organisms = [
-                new_organisms[i].set_genome(
-                    self._encoding.reverse(enc, new_organisms[i]))
-                for i, enc in enumerate(children)
-            ]
-            next_population.extend(new_organisms)
+            children = self._crossover(parent_a, parent_b)
+            next_population.extend(children)
 
         # 4. Mutation
         for org in next_population:
@@ -165,13 +172,15 @@ class SBXCrossover(Crossover):
     def __init__(self, n: float = 5) -> None:
         self.n = n
 
-    def __call__(self, parent_a: np.ndarray,
-                 parent_b: np.ndarray) -> List[np.ndarray]:
-        offspring_a = np.zeros(parent_a.shape)
-        offspring_b = np.zeros(parent_b.shape)
+    def __call__(self, parent_a: Organism,
+                 parent_b: Organism) -> list[Organism]:
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
 
         # for each gene perform SBX crossover
-        for i, _ in enumerate(parent_a):
+        for i, _ in enumerate(encoding_a):
             u = np.random.rand()
             if u <= 0.5:
                 # beta = (2 * u)**(1 / (self._mu + 1))
@@ -181,19 +190,324 @@ class SBXCrossover(Crossover):
                 beta = 1 / np.power(-2 * u, self.n + 1)
 
             # calculate the offspring values
-            offspring_a[i] = 0.5 * ((parent_a[i] + parent_b[i]) -
-                                    beta * np.abs(parent_b[i] - parent_a[i]))
-            offspring_b[i] = 0.5 * ((parent_a[i] + parent_b[i]) +
-                                    beta * np.abs(parent_b[i] - parent_a[i]))
+            offspring_a[i] = 0.5 * (
+                (encoding_a[i] + encoding_b[i]) -
+                beta * np.abs(encoding_b[i] - encoding_a[i]))
+            offspring_b[i] = 0.5 * (
+                (encoding_a[i] + encoding_b[i]) +
+                beta * np.abs(encoding_b[i] - encoding_a[i]))
             # offspring_a[i] = 0.5 * (((1 + beta) * parent_a[i]) +
             #                         ((1 - beta) * parent_b[i]))
             # offspring_b[i] = 0.5 * (((1 - beta) * parent_a[i]) +
             #                         ((1 + beta) * parent_b[i]))
 
-        return [
+        return self._create_organisms_from_encoding([
             offspring_a,
             offspring_b,
-        ]
+        ], parent_a, parent_b)
+
+
+class SASBXCrossover(Crossover):
+
+    def __init__(self, alpha: float = 1.5, init_n: float = 2) -> None:
+        self.alpha = alpha
+        self.n = init_n
+        self.decider = FoodConsumnptionToDistanceFitness()
+        self._lower_eta_bound = 1
+        self._upper_eta_bound = 10
+
+    def is_better_than_parents(self, child: Organism):
+        if len(child._parents) < 2:
+            return False
+        parent_a = child._parents[0]
+        parent_b = child._parents[1]
+        evaluations = self.decider([parent_a, parent_b, child])
+        return (evaluations[2] > evaluations[0] and evaluations[2] >
+                evaluations[1])
+
+    def correct_eta(self, child, parent_a, parent_b, alpha):
+        encoding_c = self._encoding(child)
+        encoding_pa = self._encoding(parent_a)
+        encoding_pb = self._encoding(parent_b)
+        parent_enc_diff = encoding_pb - encoding_pa
+        parent_enc_diff[parent_enc_diff == 0] = 1 << 32
+        beta = np.linalg.norm(
+            1 + (2 * (encoding_c - encoding_pb)) / parent_enc_diff)
+        if beta > 1:
+            eta_s = -1 + (child.eta + 1) * np.log(beta) / np.log(
+                1 + alpha * (beta - 1)
+            )
+        else:
+            eta_s = (1 + child.eta) / alpha - 1
+        # eta_s[eta_s < self._lower_eta_bound] = self._lower_eta_bound
+        # eta_s[eta_s > self._upper_eta_bound] = self._upper_eta_bound
+        eta_s = min(self._upper_eta_bound, max(self._lower_eta_bound, eta_s))
+        return eta_s
+
+    def correct_eta_with_u(self, child, parent_a, parent_b, alpha, u):
+        encoding_c = self._encoding(child)
+        encoding_cs = self._encoding(child.sibling)
+        encoding_pa = self._encoding(parent_a)
+        encoding_pb = self._encoding(parent_b)
+        if np.linalg.norm(encoding_c - encoding_pa) < np.linalg.norm(encoding_c
+                                                                     - encoding_pb):
+            encoding_pn = encoding_pa
+            encoding_pd = encoding_pb
+        else:
+            encoding_pn = encoding_pb
+            encoding_pd = encoding_pa
+        parent_enc_diff = encoding_pd - encoding_pn
+        parent_enc_diff[parent_enc_diff == 0] = 1 << 32
+        # beta = np.linalg.norm(
+        #     1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
+        beta = np.mean(
+            1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
+        siblings_enc_diff = encoding_cs - encoding_c
+        siblings_enc_diff[siblings_enc_diff == 0] = 1 << 32
+        # beta_a = np.linalg.norm(
+        #     1 + (alpha * (beta - 1) * parent_enc_diff) / siblings_enc_diff)
+        beta_a = np.mean(
+            1 + (2 * alpha * (encoding_cs - encoding_pn)) / siblings_enc_diff)
+        # print('beta, beta_a', beta, beta_a)
+        if beta > 1:
+            eta_s = -1 - np.log(2 * (1 - u)) / np.log(beta_a)
+            # eta_s = -1 - np.log(beta_a) / np.log(2 * (1 - u))
+        else:
+            eta_s = -1 + np.log(2 * u) / np.log(beta_a)
+            # eta_s = -1 + np.log(beta_a) / np.log(2 * u)
+            # eta_s=(1 + child.eta) / alpha - 1
+        # eta_s[eta_s < self._lower_eta_bound] = self._lower_eta_bound
+        # eta_s[eta_s > self._upper_eta_bound] = self._upper_eta_bound
+        # print('eta after correction', eta_s)
+        eta_s = min(self._upper_eta_bound, max(self._lower_eta_bound, eta_s))
+        return eta_s
+
+    def __call__(self, parent_a: Organism,
+                 parent_b: Organism) -> list[Organism]:
+
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
+
+        # get the offspring's etas
+        if parent_a.eta is None:
+            # parent_a.eta = np.full(encoding_a.shape, self.n)
+            parent_a.eta = self.n
+        if parent_b.eta is None:
+            # parent_b.eta = np.full(encoding_b.shape, self.n)
+            parent_b.eta = self.n
+        # eta_a = parent_a.eta.copy()
+        # eta_b = parent_b.eta.copy()
+        eta_a = parent_a.eta
+        eta_b = parent_b.eta
+        # print('eta a, b:', eta_a, eta_b)
+        eta = (eta_a + eta_b) / 2
+
+        # decide if the offsprings evaluated better than their parents
+        # if self.is_better_than_parents(parent_a):
+        #     eta_a = self.correct_eta(
+        #         parent_a, parent_a._parents[0], parent_a._parents[1], self.alpha)
+        # if self.is_better_than_parents(parent_b):
+        #     eta_b = self.correct_eta(
+        #         parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha)
+        # if len(parent_a._parents) == 2:
+        #     eta_a = self.correct_eta(
+        #         parent_a, parent_a._parents[0], parent_a._parents[1], self.alpha if
+        #         self.is_better_than_parents(parent_a) else 1 / self.alpha)
+        # if len(parent_b._parents) == 2:
+        #     eta_b = self.correct_eta(
+        #         parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha if
+        #         self.is_better_than_parents(parent_a) else 1 / self.alpha)
+        #     print(eta_b)
+
+        # eta = np.zeros(encoding_a.shape)
+        # for i, _ in enumerate(encoding_a.shape):
+        #     eta[i] = eta_a[i] if np.random.random() > 0.5 else eta_b[i]
+
+        # for each gene perform SBX crossover
+        for i, _ in enumerate(encoding_a):
+            u = np.random.rand()
+            parent = parent_a if np.random.random() > 0.5 else parent_b
+            if len(parent._parents) == 2:
+                eta = self.correct_eta_with_u(
+                    parent,
+                    parent._parents[0],
+                    parent._parents[1],
+                    self.alpha if self.is_better_than_parents(parent)
+                    else 1 / self.alpha,
+                    u
+                )
+            if u <= 0.5:
+                beta = np.power(2 * u, 1 / (eta + 1))
+            else:
+                beta = np.power(1 / (2 * (1 - u)), 1 / (eta + 1))
+
+            # calculate the offspring values
+            offspring_a[i] = 0.5 * (((1 + beta) * encoding_a[i]) +
+                                    ((1 - beta) * encoding_b[i]))
+            offspring_b[i] = 0.5 * (((1 - beta) * encoding_a[i]) +
+                                    ((1 + beta) * encoding_b[i]))
+
+        new_organisms = self._create_organisms_from_encoding([
+            offspring_a,
+            offspring_b,
+        ], parent_a, parent_b)
+        new_organisms[0].sibling = new_organisms[1]
+        new_organisms[1].sibling = new_organisms[0]
+        return new_organisms
+
+
+class SimpleAdaptiveSBXCrossover(Crossover):
+
+    def __init__(self, alpha: float = 1.1, init_n: float = 2) -> None:
+        self.alpha = alpha
+        self.n = init_n
+        self.decider = FoodConsumnptionToDistanceFitness()
+        self._lower_eta_bound = 1
+        self._upper_eta_bound = 10
+
+    def is_better_than_parents(self, child: Organism):
+        if len(child._parents) < 2:
+            return False
+        parent_a = child._parents[0]
+        parent_b = child._parents[1]
+        evaluations = self.decider([parent_a, parent_b, child])
+        return (evaluations[2] > evaluations[0] and evaluations[2] >
+                evaluations[1])
+
+    def correct_eta(self, child, parent_a, parent_b, alpha):
+        encoding_c = self._encoding(child)
+        encoding_pa = self._encoding(parent_a)
+        encoding_pb = self._encoding(parent_b)
+        parent_enc_diff = encoding_pb - encoding_pa
+        parent_enc_diff[parent_enc_diff == 0] = 1 << 32
+        beta = np.linalg.norm(
+            1 + (2 * (encoding_c - encoding_pb)) / parent_enc_diff)
+        if beta > 1:
+            eta_s = alpha * child.eta
+            # eta_s = -1 + (child.eta + 1) * np.log(beta) / np.log(
+            #     1 + alpha * (beta - 1)
+            # )
+        else:
+            eta_s = alpha * child.eta
+            # eta_s = (1 + child.eta) / alpha - 1
+        # eta_s[eta_s < self._lower_eta_bound] = self._lower_eta_bound
+        # eta_s[eta_s > self._upper_eta_bound] = self._upper_eta_bound
+        eta_s = min(self._upper_eta_bound, max(self._lower_eta_bound, eta_s))
+        return eta_s
+
+    def correct_eta_with_u(self, child, parent_a, parent_b, alpha, u):
+        encoding_c = self._encoding(child)
+        encoding_cs = self._encoding(child.sibling)
+        encoding_pa = self._encoding(parent_a)
+        encoding_pb = self._encoding(parent_b)
+        if np.linalg.norm(encoding_c - encoding_pa) < np.linalg.norm(encoding_c
+                                                                     - encoding_pb):
+            encoding_pn = encoding_pa
+            encoding_pd = encoding_pb
+        else:
+            encoding_pn = encoding_pb
+            encoding_pd = encoding_pa
+        parent_enc_diff = encoding_pd - encoding_pn
+        parent_enc_diff[parent_enc_diff == 0] = 1 << 32
+        beta = np.linalg.norm(
+            1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
+        siblings_enc_diff = encoding_cs - encoding_c
+        siblings_enc_diff[siblings_enc_diff == 0] = 1 << 32
+        # beta_a = np.linalg.norm(
+        #     1 + (alpha * (beta - 1) * parent_enc_diff) / siblings_enc_diff)
+        beta_a = np.linalg.norm(
+            1 + (2 * alpha * (encoding_cs - encoding_pn)) / siblings_enc_diff)
+        # print('beta, beta_a', beta, beta_a)
+        if beta > 1:
+            eta_s = -1 - np.log(2 * (1 - u)) / np.log(beta_a)
+            # eta_s = -1 - np.log(beta_a) / np.log(2 * (1 - u))
+        else:
+            eta_s = -1 + np.log(2 * u) / np.log(beta_a)
+            # eta_s = -1 + np.log(beta_a) / np.log(2 * u)
+            # eta_s=(1 + child.eta) / alpha - 1
+        # eta_s[eta_s < self._lower_eta_bound] = self._lower_eta_bound
+        # eta_s[eta_s > self._upper_eta_bound] = self._upper_eta_bound
+        # print('eta after correction', eta_s)
+        eta_s = min(self._upper_eta_bound, max(self._lower_eta_bound, eta_s))
+        return eta_s
+
+    def __call__(self, parent_a: Organism,
+                 parent_b: Organism) -> list[Organism]:
+
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
+
+        # get the offspring's etas
+        if parent_a.eta is None:
+            # parent_a.eta = np.full(encoding_a.shape, self.n)
+            parent_a.eta = self.n
+        if parent_b.eta is None:
+            # parent_b.eta = np.full(encoding_b.shape, self.n)
+            parent_b.eta = self.n
+        # eta_a = parent_a.eta.copy()
+        # eta_b = parent_b.eta.copy()
+        eta_a = parent_a.eta
+        eta_b = parent_b.eta
+        # print('eta a, b:', eta_a, eta_b)
+        eta = (eta_a + eta_b) / 2
+
+        # decide if the offsprings evaluated better than their parents
+        # if self.is_better_than_parents(parent_a):
+        #     eta_a = self.correct_eta(
+        #         parent_a, parent_a._parents[0], parent_a._parents[1], self.alpha)
+        # if self.is_better_than_parents(parent_b):
+        #     eta_b = self.correct_eta(
+        #         parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha)
+        if len(parent_a._parents) == 2:
+            eta_a = self.correct_eta(
+                parent_a, parent_a._parents[0], parent_a._parents[1], self.alpha if
+                self.is_better_than_parents(parent_a) else 1 / self.alpha)
+        if len(parent_b._parents) == 2:
+            eta_b = self.correct_eta(
+                parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha if
+                self.is_better_than_parents(parent_a) else 1 / self.alpha)
+
+        eta = (eta_a + eta_b) / 2
+
+        # eta = np.zeros(encoding_a.shape)
+        # for i, _ in enumerate(encoding_a.shape):
+        #     eta[i] = eta_a[i] if np.random.random() > 0.5 else eta_b[i]
+
+        # for each gene perform SBX crossover
+        for i, _ in enumerate(encoding_a):
+            u = np.random.rand()
+            # parent = parent_a if np.random.random() > 0.5 else parent_b
+            # if len(parent._parents) == 2:
+            #     eta = self.correct_eta_with_u(
+            #         parent,
+            #         parent._parents[0],
+            #         parent._parents[1],
+            #         self.alpha if self.is_better_than_parents(parent)
+            #         else 1 / self.alpha,
+            #         u
+            #     )
+            if u <= 0.5:
+                beta = np.power(2 * u, 1 / (eta + 1))
+            else:
+                beta = np.power(1 / (2 * (1 - u)), 1 / (eta + 1))
+
+            # calculate the offspring values
+            offspring_a[i] = 0.5 * (((1 + beta) * encoding_a[i]) +
+                                    ((1 - beta) * encoding_b[i]))
+            offspring_b[i] = 0.5 * (((1 - beta) * encoding_a[i]) +
+                                    ((1 + beta) * encoding_b[i]))
+
+        new_organisms = self._create_organisms_from_encoding([
+            offspring_a,
+            offspring_b,
+        ], parent_a, parent_b)
+        new_organisms[0].sibling = new_organisms[1]
+        new_organisms[1].sibling = new_organisms[0]
+        return new_organisms
 
 
 class BLXCrossover(Crossover):
@@ -203,62 +517,71 @@ class BLXCrossover(Crossover):
 
     def __call__(self, parent_a: np.ndarray,
                  parent_b: np.ndarray) -> List[np.ndarray]:
-        offspring_a = np.zeros(parent_a.shape)
-        offspring_b = np.zeros(parent_b.shape)
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
 
         # for each gene perform BLX crossover
-        for i in range(parent_a.shape[0]):
+        for i in range(encoding_a.shape[0]):
             # Calculate the interval difference
-            d = np.abs(parent_a[i] - parent_b[i])
+            d = np.abs(encoding_a[i] - encoding_b[i])
             I = self.alpha * d
 
             # Create offspring within range [min(a,b) - I, max(a,b) + I]
-            min_val = min(parent_a[i], parent_b[i]) - I
-            max_val = max(parent_a[i], parent_b[i]) + I
+            min_val = min(encoding_a[i], encoding_b[i]) - I
+            max_val = max(encoding_a[i], encoding_b[i]) + I
 
             offspring_a[i] = np.random.uniform(low=min_val, high=max_val)
             offspring_b[i] = np.random.uniform(low=min_val, high=max_val)
 
-        return [offspring_a, offspring_b]
+        return self._create_organisms_from_encoding([offspring_a, offspring_b],
+                                                    parent_a, parent_b)
 
 
 class ArithmeticCrossover(Crossover):
 
     def __call__(self, parent_a: np.ndarray,
                  parent_b: np.ndarray) -> List[np.ndarray]:
-        offspring_a = np.zeros(parent_a.shape)
-        offspring_b = np.zeros(parent_b.shape)
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
 
         # Randomly generate a weight
         rand_weight = np.random.rand()
 
         # for each gene perform Arithmetic Crossover
-        for i in range(parent_a.shape[0]):
-            offspring_a[i] = rand_weight * parent_a[i] + (
-                1 - rand_weight) * parent_b[i]
-            offspring_b[i] = rand_weight * parent_b[i] + (
-                1 - rand_weight) * parent_a[i]
+        for i in range(encoding_a.shape[0]):
+            offspring_a[i] = rand_weight * encoding_a[i] + (
+                1 - rand_weight) * encoding_b[i]
+            offspring_b[i] = rand_weight * encoding_b[i] + (
+                1 - rand_weight) * encoding_a[i]
 
-        return [offspring_a, offspring_b]
+        return self._create_organisms_from_encoding([offspring_a, offspring_b],
+                                                    parent_a, parent_b)
 
 
 class UniformCrossover(Crossover):
 
     def __call__(self, parent_a: np.ndarray,
                  parent_b: np.ndarray) -> List[np.ndarray]:
-        offspring_a = np.zeros(parent_a.shape)
-        offspring_b = np.zeros(parent_b.shape)
+        encoding_a = self._encoding(parent_a)
+        encoding_b = self._encoding(parent_b)
+        offspring_a = np.zeros(encoding_a.shape)
+        offspring_b = np.zeros(encoding_b.shape)
 
         # for each gene perform Uniform Crossover
-        for i in range(parent_a.shape[0]):
+        for i in range(encoding_a.shape[0]):
             if np.random.rand() < 0.5:
-                offspring_a[i] = parent_a[i]
-                offspring_b[i] = parent_b[i]
+                offspring_a[i] = encoding_a[i]
+                offspring_b[i] = encoding_b[i]
             else:
-                offspring_a[i] = parent_b[i]
-                offspring_b[i] = parent_a[i]
+                offspring_a[i] = encoding_b[i]
+                offspring_b[i] = encoding_a[i]
 
-        return [offspring_a, offspring_b]
+        return self._create_organisms_from_encoding([offspring_a, offspring_b],
+                                                    parent_a, parent_b)
 
 
 class GaussianMutation(Mutation):
