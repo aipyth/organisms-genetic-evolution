@@ -16,25 +16,57 @@ import traces as trs
 
 RESULT_DIR_TEMPLATE = 'results/result_*'
 
-expms = {}
 
-for record_dir in glob.glob(RESULT_DIR_TEMPLATE):
-    org_loc = pq.read_table(os.path.join(record_dir,
-                                         'organisms_locations')).to_pandas()
-    eaten_stats = pq.read_table(os.path.join(record_dir,
-                                             'eaten_food')).to_pandas()
-    org_loc.reset_index(drop=True, inplace=True)
-    eaten_stats.reset_index(drop=True, inplace=True)
-    with open(os.path.join(record_dir, 'metadata.json'),
-              mode='r',
-              encoding='utf-8') as fp:
-        metadata = json.load(fp)
-    expms[record_dir] = {
-        'metadata': metadata,
-        'org_loc': org_loc,
-        'eaten_stats': eaten_stats,
-        'visible': True  # Add a 'visible' key to track dataset visibility
-    }
+def read_results_dir(template):
+    expms = {}
+    for record_dir in glob.glob(template):
+        org_loc = pq.read_table(os.path.join(
+            record_dir, 'organisms_locations')).to_pandas()
+        eaten_stats = pq.read_table(os.path.join(record_dir,
+                                                 'eaten_food')).to_pandas()
+        # organisms_stats = pq.read_table(
+        #     os.path.join(record_dir, 'organisms_stats')).to_pandas()
+        org_loc.reset_index(drop=True, inplace=True)
+        eaten_stats.reset_index(drop=True, inplace=True)
+        # organisms_stats.reset_index(drop=True, inplace=True)
+        # organisms_genome = pd.DataFrame()
+        # for genome_file_name in glob.glob(
+        #         os.path.join(record_dir, 'organisms_genome_*.csv')):
+        #     organisms_genome = pd.concat(
+        #         [organisms_genome,
+        #          pd.read_csv(genome_file_name)])
+        with open(os.path.join(record_dir, 'metadata.json'),
+                  mode='r',
+                  encoding='utf-8') as fp:
+            metadata = json.load(fp)
+        expms[record_dir] = {
+            'metadata': metadata,
+            'org_loc': org_loc,
+            'eaten_stats': eaten_stats,
+            # 'organisms_stats': organisms_stats,
+            # 'organisms_genome': organisms_genome,
+            'visible': True  # Add a 'visible' key to track dataset visibility
+        }
+    return expms
+
+
+expms = read_results_dir(RESULT_DIR_TEMPLATE)
+
+
+def wrap_metadata_value(value):
+    if type(value) != dict:
+        return str(value)
+    ret = ''
+    if 'name' in value:
+        ret += value['name'] + '_'
+    if 'object' in value:
+        ret += '('
+        for k, v in value['object'].items():
+            ret += k + '_'
+            ret += str(v) if type(v) != dict else v['name']
+        ret += ')'
+    return ret
+
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
@@ -57,8 +89,10 @@ for key in metadata_keys:
         if key not in dataset['metadata']:
             continue
         values_options.append({
-            'label': str(dataset['metadata'].get(key)),
-            'value': str(dataset['metadata'].get(key))
+            'label':
+            str(wrap_metadata_value(dataset['metadata'].get(key))),
+            'value':
+            str(dataset['metadata'].get(key))
         })
     metadata_value_options[key] = [
         dict(s) for s in set(frozenset(d.items()) for d in values_options)
@@ -71,15 +105,18 @@ app.layout = html.Div(children=[
             html.Form(
                 children=[
                     html.Div(children=[
-                        dbc.Card([
-                            html.Label(
-                                f'Filter Datasets by {str(key).upper()}',
-                                className='card-title'),
-                            dcc.Dropdown(id=f'dropdown-{key}',
-                                         options=metadata_value_options[key],
-                                         multi=True,
-                                         className='dropdown')
-                        ],
+                        dbc.Card(
+                            [
+                                html.Label(
+                                    f'Filter Datasets by {str(key).upper()}',
+                                    className='card-title'),
+                                dcc.Checklist(
+                                    id=f'dropdown-{key}',
+                                    options=metadata_value_options[key],
+                                )
+                                # multi=True,
+                                # className='dropdown')
+                            ],
                             className='m-1 p-2',
                             style={'min-width': '400px'}),
                     ]) for key in metadata_keys
@@ -105,7 +142,7 @@ app.layout = html.Div(children=[
                                       value=80,
                                       type='number'),
                         ],
-                            style={'display': 'flex'}),
+                                 style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-time-graph',
                                   style={
                                       'display': 'flex',
@@ -121,7 +158,7 @@ app.layout = html.Div(children=[
                                       value=5,
                                       type='number'),
                         ],
-                            style={'display': 'flex'}),
+                                 style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-generation-graph',
                                   style={
                                       'display': 'flex',
@@ -147,7 +184,7 @@ app.layout = html.Div(children=[
                                       value=360,
                                       type='number'),
                         ],
-                            style={'display': 'flex'}),
+                                 style={'display': 'flex'}),
                         dcc.Graph(id='food-to-movement-ratio-graph',
                                   style={
                                       'display': 'flex',
@@ -197,7 +234,7 @@ def update_dataset(ev_time_window, ev_generation_window, ftm_window,
                 break
             if (values and str(metadata_value)
                     in values) or (key in KEYS_IN_HOVERTEMPLATE):
-                hovertemplate += f'<br>{key}: {metadata_value}'
+                hovertemplate += f'<br> {key}: {wrap_metadata_value(metadata_value)}'
         if match:
             expms[dataset_name]['visible'] = True
             expms[dataset_name]['hovertemplate'] = hovertemplate

@@ -29,6 +29,7 @@ class Organism:
         self.time = 0
         self._eta = None
         self._sibling = None
+        self._id = id
 
     def __str__(self):
         return f"<Organism {[g.shape for g in self.genome]}>"
@@ -36,6 +37,14 @@ class Organism:
     def add_parent(self, organism):
         self._parents.append(organism)
         return self
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        self._id = value
 
     @property
     def sibling(self):

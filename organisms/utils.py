@@ -10,7 +10,7 @@ vowels = ['a', 'e', 'i', 'o', 'u']
 
 def generate_name(num_syllables):
     name = ''
-    for i in range(num_syllables):
+    for i in range(num_syllables * 2):
         if i % 2 == 0:  # Choose a consonant for even syllables
             name += random.choice(consonants)
         else:  # Choose a vowel for odd syllables

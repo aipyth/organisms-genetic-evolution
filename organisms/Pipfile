@@ -13,6 +13,8 @@ tqdm = "*"
 rtree = "*"
 matplotlib = "*"
 pyarrow = "*"
+seaborn = "*"
+torch = "*"
 
 [dev-packages]
 yapf = "*"

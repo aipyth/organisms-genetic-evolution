@@ -47,6 +47,7 @@ class Simple2DContinuousEnvironment:
         self._food_appearance_prob = food_appearance_number_rate
         self.vision_range = vision_range
         self._remove_dead_organisms = remove_dead_organisms
+        self._on_organism_death_handler = None
 
     def add_food(self):
         # generate random location for the food
@@ -104,6 +105,7 @@ class Simple2DContinuousEnvironment:
             x = np.random.uniform(0, self.width)
             y = np.random.uniform(0, self.height)
         self.organisms[self._organism_counter] = organism
+        organism.id = self._organism_counter
         organism.x = np.array([x, y])
         self.organism_idx.insert(self._organism_counter, (x, y, x, y))
         self._organism_counter += 1
@@ -204,6 +206,9 @@ class Simple2DContinuousEnvironment:
         organisms = list(filter(lambda os: os is not organism, organisms))
         return self._vision(organism, organisms, food)
 
+    def on_organism_death(self, f):
+        self._on_organism_death_handler = f
+
     def tick(self):
         """
         This method simulates the passage of time in the environment. It iterates through each organism and performs the following operations:
@@ -229,6 +234,8 @@ class Simple2DContinuousEnvironment:
             # print('result shape', result.shape)
             self.organism_result_to_coordinates(organism, result)
             if self._remove_dead_organisms and not organism.is_alive:
+                if self._on_organism_death_handler is not None:
+                    self._on_organism_death_handler(organism)
                 self.remove_organism(organism)
         # add food with some probability
         food_to_spawn = np.random.exponential(self._food_appearance_prob)
