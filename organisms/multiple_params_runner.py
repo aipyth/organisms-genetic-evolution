@@ -88,16 +88,16 @@ vision = environment.SectorVision(
 genome_shapes = [
     [vision.organism_input_shape, 6, 2],
     # [vision.organism_input_shape, 12, 2],
-    # [vision.organism_input_shape, 12, 6, 2],
-    [vision.organism_input_shape, 24, 12, 2],
+    [vision.organism_input_shape, 12, 6, 2],
+    # [vision.organism_input_shape, 24, 12, 2],
 ]
 
 fitness = evolve.EnergyFitness()
 
 # generation_time = 80
 generation_time = 60
-generations = 20
-# generations = 200
+# generations = 20
+generations = 200
 
 arguments = {
     'start_organism_number': [40],
@@ -117,6 +117,7 @@ arguments = {
         # evolve.TruncationSelection(fitness=fitness, n=10),
         # evolve.TruncationSelection(fitness=fitness, n=15),
         evolve.TruncationSelection(fitness=fitness, n=20),
+        # evolve.TruncationSelection(fitness=fitness, n=50),
     ],
     'crossover': [
         # evolve.SASBXCrossover(alpha=1.1),
@@ -124,20 +125,63 @@ arguments = {
         evolve.SBXCrossover(n=2),
         # evolve.SBXCrossover(n=8),
         evolve.ArithmeticCrossover(),
+        evolve.BLXCrossover(alpha=0.5),
+        evolve.SBXCrossover(n=12),
+    ],
+    'mutation': [
+        # evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
+        evolve.NonUniformMutation(b=5, p=0.05,
+                                  T=generation_time * generations),
+        evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
+    ],
+    'elitism': [20],
+    'genome_size':
+    genome_shapes,
+    'food_particles_at_start': [40],
+    'remove_dead_organisms': [False, True],
+}
+
+arguments_2 = {
+    'start_organism_number': [100],
+    'width': [20],
+    'height': [20],
+    'iterations': [generation_time * generations],
+    'generation_time': [generation_time],
+    'organism_size': [0.12],
+    'food_size': [0.05],
+    'organism_vision_range': [organism_vision_range],
+    'vision': [vision],
+    'food_energy': [2],
+    'food_appearance_number_rate': [0.7],
+    'energy_decrease_rate': [0.02],
+    'encoding': [encode.RealValued()],
+    'selection': [
+        # evolve.TruncationSelection(fitness=fitness, n=10),
+        # evolve.TruncationSelection(fitness=fitness, n=15),
+        # evolve.TruncationSelection(fitness=fitness, n=20),
+        evolve.TruncationSelection(fitness=fitness, n=50),
+    ],
+    'crossover': [
+        # evolve.SASBXCrossover(alpha=1.1),
+        # evolve.SimpleAdaptiveSBXCrossover(alpha=1.1),
+        evolve.SBXCrossover(n=2),
+        # evolve.SBXCrossover(n=3),
+        # evolve.SBXCrossover(n=8),
+        evolve.ArithmeticCrossover(),
         # evolve.BLXCrossover(alpha=0.5),
         # evolve.SBXCrossover(n=12),
     ],
     'mutation': [
         # evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
-        # evolve.NonUniformMutation(
-        #     b=5, p=0.05,
-        #     T=generation_time * generations),
+        evolve.NonUniformMutation(b=5, p=0.05,
+                                  T=generation_time * generations),
         evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
     ],
     'elitism': [20],
-    'genome_size': genome_shapes,
+    'genome_size':
+    genome_shapes,
     'food_particles_at_start': [40],
-    'remove_dead_organisms': [False],
+    'remove_dead_organisms': [False, True],
 }
 
 # as we are using steady-state GA in this implementation we need to set a small number of generation_time
@@ -169,9 +213,7 @@ arguments_steady = {
     ],
     'mutation': [
         evolve.GaussianMutation(mu=0, sigma=0.1, p=0.1),
-        evolve.NonUniformMutation(
-            b=5, p=0.05,
-            T=iterations_steady),
+        evolve.NonUniformMutation(b=5, p=0.05, T=iterations_steady),
         evolve.UniformMutation(low=-0.5, high=0.5, p=0.05),
     ],
     'elitism': [20],
@@ -190,6 +232,15 @@ if __name__ == '__main__':
     for i, var in enumerate(variations):
         print(f'Running sample №{i+1}/{len(variations)}')
         run_organisms_environment(var)
+
+    # print('Running evolution with generative GA 2')
+    # variations = generate_argument_variations(arguments_2)
+
+    # print(f'Total number of configurations (variations): {len(variations)}')
+
+    # for i, var in enumerate(variations):
+    #     print(f'Running sample №{i+1}/{len(variations)}')
+    #     run_organisms_environment(var)
 
 # variations_steady = generate_argument_variations(arguments_steady)
 #
