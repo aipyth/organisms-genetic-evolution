@@ -1,35 +1,27 @@
 \begin{thebibliography}{1}
-\def\selectlanguageifdefined#1{
-\expandafter\ifx\csname date#1\endcsname\relax
-\else\selectlanguage{#1}\fi}
-\providecommand*{\href}[2]{{\small #2}}
-\providecommand*{\url}[1]{{\small #1}}
-\providecommand*{\BibUrl}[1]{\url{#1}}
-\providecommand{\BibAnnote}[1]{}
-\providecommand*{\BibEmph}[1]{#1}
-\ProvideTextCommandDefault{\cyrdash}{\iflanguage{russian}{\hbox to.8em{--\hss--}}{\textemdash}}
-\providecommand*{\BibDash}{\ifdim\lastskip>0pt\unskip\nobreak\hskip.2em plus 0.1em\fi
-\cyrdash\hskip.2em plus 0.1em\ignorespaces}
-\renewcommand{\newblock}{\ignorespaces}
 
-\bibitem{luke_essentials_2013}
-\selectlanguageifdefined{en}
-Luke~Sean. Essentials of metaheuristics: a set of undergraduate lecture notes; {Online} {Version} 2.0. \BibDash
-\newblock 2. ed ed. \BibDash
-\newblock S.l.~: Lulu, 2013. \BibDash
-\newblock ISBN:~\href{http://isbndb.com/search-all.html?kw=978-1-300-54962-8}{978-1-300-54962-8}.
+\bibitem{bridsonFastPoissonDisk2007}
+Robert Bridson.
+\newblock Fast {{Poisson}} disk sampling in arbitrary dimensions.
+\newblock In {\em {{ACM SIGGRAPH}} 2007 Sketches}, page~22, {San Diego California}, August 2007. {ACM}.
 
-\bibitem{slowik_evolutionary_2020}
-\selectlanguageifdefined{en}
-Slowik~Adam, Kwasnicka~Halina. Evolutionary algorithms and their applications to engineering problems~// \href{https://doi.org/10.1007/s00521-020-04832-8}{\BibEmph{Neural Computing and Applications}}. \BibDash
-\newblock 2020. \BibDash Aug. \BibDash
-\newblock Vol.~32, no.~16. \BibDash
-\newblock P.~12363--12379. \BibDash
-\newblock online; accessed: \BibUrl{https://doi.org/10.1007/s00521-020-04832-8} (online; accessed: 2023-06-03).
+\bibitem{debSelfadaptiveSimulatedBinary2007}
+Kalyan Deb, Karthik Sindhya, and Tatsuya Okabe.
+\newblock Self-adaptive simulated binary crossover for real-parameter optimization.
+\newblock pages 1187--1194, July 2007.
 
-\bibitem{rooy_evolving_nodate}
-\selectlanguageifdefined{en}
-Rooy~Nathan. Evolving {Simple} {Organisms} using a {Genetic} {Algorithm} and {Deep} {Learning} from {Scratch} with {Python}. \BibDash
-\newblock online; accessed: \BibUrl{https://nathanrooy.github.io/posts/2017-11-30/evolving-simple-organisms-using-a-genetic-algorithm-and-deep-learning/} (online; accessed: 2023-05-31).
+\bibitem{debSIMULATEDBINARYCROSSOVER}
+Kalyanmoy Deb and Ram~Bhusan Agrawal.
+\newblock {{SIMULATED BINARY CROSSOVER FOR CONTINUOUS SEARCH SPACE}}.
+
+\bibitem{koraCrossoverOperatorsGenetic2017}
+Padmavathi Kora and Priyanka Yadlapalli.
+\newblock Crossover {{Operators}} in {{Genetic Algorithms}}: {{A Review}}.
+\newblock {\em International Journal of Computer Applications}, 162:34--36, March 2017.
+
+\bibitem{rooyEvolvingSimpleOrganisms}
+Nathan Rooy.
+\newblock Evolving {{Simple Organisms}} using a {{Genetic Algorithm}} and {{Deep Learning}} from {{Scratch}} with {{Python}}.
+\newblock https://nathanrooy.github.io/posts/2017-11-30/evolving-simple-organisms-using-a-genetic-algorithm-and-deep-learning/.
 
 \end{thebibliography}
