@@ -14,14 +14,29 @@ Kalyan Deb, Karthik Sindhya, and Tatsuya Okabe.
 Kalyanmoy Deb and Ram~Bhusan Agrawal.
 \newblock {{SIMULATED BINARY CROSSOVER FOR CONTINUOUS SEARCH SPACE}}.
 
+\bibitem{guptaEmbodiedIntelligenceLearning2021}
+Agrim Gupta, Silvio Savarese, Surya Ganguli, and Li~{Fei-Fei}.
+\newblock Embodied intelligence via learning and evolution.
+\newblock {\em Nature Communications}, 12(1):5721, October 2021.
+
 \bibitem{koraCrossoverOperatorsGenetic2017}
 Padmavathi Kora and Priyanka Yadlapalli.
 \newblock Crossover {{Operators}} in {{Genetic Algorithms}}: {{A Review}}.
 \newblock {\em International Journal of Computer Applications}, 162:34--36, March 2017.
 
+\bibitem{lukeEssentialsMetaheuristicsSet2013}
+Sean Luke.
+\newblock {\em Essentials of Metaheuristics: A Set of Undergraduate Lecture Notes; {{Online Version}} 2.0}.
+\newblock {Lulu}, {S.l.}, 2. ed edition, 2013.
+
 \bibitem{rooyEvolvingSimpleOrganisms}
 Nathan Rooy.
 \newblock Evolving {{Simple Organisms}} using a {{Genetic Algorithm}} and {{Deep Learning}} from {{Scratch}} with {{Python}}.
 \newblock https://nathanrooy.github.io/posts/2017-11-30/evolving-simple-organisms-using-a-genetic-algorithm-and-deep-learning/.
+
+\bibitem{slowikEvolutionaryAlgorithmsTheir2020}
+Adam Slowik and Halina Kwasnicka.
+\newblock Evolutionary algorithms and their applications to engineering problems.
+\newblock {\em Neural Computing and Applications}, 32(16):12363--12379, August 2020.
 
 \end{thebibliography}

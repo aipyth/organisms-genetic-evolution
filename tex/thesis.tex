@@ -19,10 +19,14 @@
 \setfontsize{14}
 
 % Створюємо титульну сторінку
-\input{a00_title}
+% \input{a00_title}
 
 % Створюємо завдання
-\input{a01_specification}
+% \linespread{1.1}
+% \input{a01_specification}
+\frenchspacing
+\doublespacing          % інтервал "1,5" між рядками, тепер навічно
+\setfontsize{14}
 
 % У даному костильному рішенні перші три сторінки (титул та завдання на 
 % роботу) друкуються окремо від основної частини тез.
@@ -30,18 +34,20 @@
 
 % Створюємо анотації
 %\setcounter{page}{4}
-\input{Chapters/a1_abstract}
+% \input{Chapters/a1_abstract}
 % Створюємо зміст
 %\pagenumbering{gobble}
-\tableofcontents
-\cleardoublepage
+
+% \tableofcontents
+% \cleardoublepage
+
 %\pagenumbering{arabic}
 %\setcounter{page}{8}    %!!! -- продумати, як автоматизувати номер сторінки
 
 % Створюємо перелік умовних позначень, скорочень і термінів
 % Якщо цей розділ вам не потрібен, просто закоментуйте два наступних рядка
-\shortings
-\input{Chapters/a2_shortings}
+% \shortings
+% \input{Chapters/a2_shortings}
 
 % Створюємо вступ
 \intro
@@ -65,8 +71,10 @@
 
 % \bibliographystyle{ugost2008}
 % \bibliography{library}
-\bibliographystyle{plain}
-\bibliography{library} % Entries are in the refs.bib file
+% \bibliographystyle{gost-numeric}
+
+% \bibliographystyle{plain}
+% \bibliography{library} % Entries are in the refs.bib file
 
 % Створюємо додатки (дивись у файли додатків для необхідних пояснень)
 % Якщо ви маєте меншу або більшу кількість додатків, модифікуйте наступні 
