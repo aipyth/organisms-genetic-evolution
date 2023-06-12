@@ -16,6 +16,12 @@ import traces as trs
 
 RESULT_DIR_TEMPLATE = 'results/result_*'
 
+ITERATIONS = 8000
+
+ORG_LOC_DROP_COLUMNS = []
+EATEN_STATS_DROP_COLUMNS = []
+DROP_NETWORK_WEIGHTS_COLUMNS = True
+
 
 def read_results_dir(template):
     expms = {}
@@ -28,6 +34,23 @@ def read_results_dir(template):
         #     os.path.join(record_dir, 'organisms_stats')).to_pandas()
         org_loc.reset_index(drop=True, inplace=True)
         eaten_stats.reset_index(drop=True, inplace=True)
+
+        org_loc = org_loc[org_loc['iteration'] < ITERATIONS]
+        eaten_stats = eaten_stats[eaten_stats['iteration'] < ITERATIONS]
+
+        # org_loc = org_loc.drop(columns=ORG_LOC_DROP_COLUMNS)
+        # eaten_stats = eaten_stats.drop(columns=EATEN_STATS_DROP_COLUMNS)
+
+        if DROP_NETWORK_WEIGHTS_COLUMNS:
+            columns_to_drop = []
+            genome_length = len(org_loc.iloc[0].loc['genome_shape'])
+            print(org_loc.iloc[0].loc['genome_shape'])
+            print(genome_length)
+            for i in range(genome_length - 1):
+                columns_to_drop.extend(
+                    (f'genome_{i}_weights', f'genome_{i}_bias'))
+            print(org_loc.columns)
+            org_loc = org_loc.drop(columns=columns_to_drop)
         # organisms_stats.reset_index(drop=True, inplace=True)
         # organisms_genome = pd.DataFrame()
         # for genome_file_name in glob.glob(
@@ -62,6 +85,8 @@ def wrap_metadata_value(value):
     if 'object' in value:
         ret += '('
         for k, v in value['object'].items():
+            if k == '_encoding':
+                continue
             ret += k + '_'
             ret += str(v) if type(v) != dict else v['name']
         ret += ')'
@@ -92,7 +117,7 @@ for key in metadata_keys:
             'label':
             str(wrap_metadata_value(dataset['metadata'].get(key))),
             'value':
-            str(dataset['metadata'].get(key))
+            str(wrap_metadata_value(dataset['metadata'].get(key)))
         })
     metadata_value_options[key] = [
         dict(s) for s in set(frozenset(d.items()) for d in values_options)
@@ -142,7 +167,7 @@ app.layout = html.Div(children=[
                                       value=80,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-time-graph',
                                   style={
                                       'display': 'flex',
@@ -158,7 +183,7 @@ app.layout = html.Div(children=[
                                       value=5,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='evolution-by-generation-graph',
                                   style={
                                       'display': 'flex',
@@ -184,7 +209,7 @@ app.layout = html.Div(children=[
                                       value=360,
                                       type='number'),
                         ],
-                                 style={'display': 'flex'}),
+                            style={'display': 'flex'}),
                         dcc.Graph(id='food-to-movement-ratio-graph',
                                   style={
                                       'display': 'flex',
@@ -205,7 +230,7 @@ app.layout = html.Div(children=[
 ])
 
 KEYS_IN_HOVERTEMPLATE = [
-    'genome_size', 'remove_dead_organisms', 'elitism', 'generation_time'
+    # 'genome_size', 'remove_dead_organisms', 'elitism', 'generation_time'
 ]
 
 
@@ -227,7 +252,8 @@ def update_dataset(ev_time_window, ev_generation_window, ftm_window,
         hovertemplate += f'{dataset_name}<br>'
         match = True
         for key, values in zip(metadata_keys, filter_values):
-            metadata_value = metadata.get(key)
+            # metadata_value = metadata.get(key)
+            metadata_value = str(wrap_metadata_value(metadata.get(key)))
             if values is not None and str(metadata_value) not in values:
                 match = False
                 expms[dataset_name]['visible'] = False
@@ -295,10 +321,14 @@ def update_evolution_by_time_graph(datasets, window):
         #             in values) or (key in KEYS_IN_HOVERTEMPLATE):
         #         hovertemplate += f'<br>{key}: {metadata_value}'
         # if visible:
+        legendgroup_items = hovertemplate.split('<br>')[3:]
+        legendgroup = '<br>'.join(legendgroup_items)
+        # print(legendgroup)
+
         traces = trs.get_energy_traces_over_time(
             org_loc,
             window=80 if not window or window <= 0 else window,
-            legendgroup=str(metadata),
+            legendgroup=legendgroup,
             hovertemplate=hovertemplate)
         data.extend(traces)
 
@@ -338,10 +368,12 @@ def update_evolution_by_generation_graph(datasets, window):
         #             in values) or (key in KEYS_IN_HOVERTEMPLATE):
         #         hovertemplate += f'<br>{key}: {metadata_value}'
         # if match:
+        legendgroup_items = hovertemplate.split('<br>')[3:]
+        legendgroup = '<br>'.join(legendgroup_items)
         traces = trs.get_energy_traces_over_generation(
             org_loc,
             window=max(window or 0, 0),
-            legendgroup=dataset_name,
+            legendgroup=legendgroup,
             hovertemplate=hovertemplate)
         data.extend(traces)
 
@@ -381,8 +413,10 @@ def update_highest_lowest_energy_by_generation_graph(datasets):
         #             in values) or (key in KEYS_IN_HOVERTEMPLATE):
         #         hovertemplate += f'<br>{key}: {metadata_value}'
         # if match:
+        legendgroup_items = hovertemplate.split('<br>')[3:]
+        legendgroup = '<br>'.join(legendgroup_items)
         traces = trs.get_highest_lowest_energy_traces_over_generation(
-            org_loc, legendgroup=dataset_name, hovertemplate=hovertemplate)
+            org_loc, legendgroup=legendgroup, hovertemplate=hovertemplate)
         data.extend(traces)
 
     layout = go.Layout(title_text='Evolution of Organisms with Highest and ' +
@@ -422,21 +456,22 @@ def update_food_to_movement_ratio_graph(datasets, window):
         #             in values) or (key in KEYS_IN_HOVERTEMPLATE):
         #         hovertemplate += f'<br>{key}: {metadata_value}'
         # if match:
+        legendgroup_items = hovertemplate.split('<br>')[3:]
+        legendgroup = '<br>'.join(legendgroup_items)
         org_loc = dataset['org_loc']
         eaten_stats = dataset['eaten_stats']
         traces = trs.get_food_to_movement_ratio_traces(
             org_loc,
             eaten_stats,
             window=max(window or 0, 0),
-            legendgroup=dataset_name,
+            legendgroup=legendgroup,
             hovertemplate=hovertemplate)
         data.extend(traces)
 
-    layout = go.Layout(
-        title_text='Evolution of Worst and Best Food-to-Movement' +
-        'Ratio Over Time',
-        xaxis_title='Iteration',
-        yaxis_title='Food-to-Movement Ratio')
+    layout = go.Layout(title_text='Worst and Best Food-to-Movement' +
+                       'Ratio Over Time',
+                       xaxis_title='Iteration',
+                       yaxis_title='Food-to-Movement Ratio')
     return go.Figure(data=data, layout=layout)
 
 

@@ -11,12 +11,11 @@ import threading
 
 matplotlib.use('agg')
 
-
-def plot_frame_wrapper(self, args):
-    progress_bar = args[0]
-    plot_frame(*(args[1:]))
-    progress_bar.update(1)
-    return True
+# def plot_frame_wrapper(self, args):
+#     progress_bar = args[0]
+#     plot_frame(*(args[1:]))
+#     progress_bar.update(1)
+#     return True
 
 
 def create_frames(organisms, food, width, height, organism_size, food_size,
@@ -24,7 +23,7 @@ def create_frames(organisms, food, width, height, organism_size, food_size,
     iterations = organisms['iteration'].max()
     progress_bar = tqdm(total=iterations)
     threads_pool: list[threading.Thread] = []
-    pool_size = 20
+    pool_size = 10
     # run plot_frame in a separate thread
     for i in range(iterations):
         t = threading.Thread(target=plot_frame,
@@ -38,15 +37,6 @@ def create_frames(organisms, food, width, height, organism_size, food_size,
             threads_pool[0].join()
             threads_pool.pop(0)
             progress_bar.update(1)
-            # for i, pt in enumerate(threads_pool[:]):
-            #     if not pt.is_alive():
-            #         threads_pool.pop(i)
-            #         progress_bar.update(1)
-    # with Pool(20) as p:
-    #     p.map(plot_frame_wrapper,
-    #           [(progress_bar, organisms[organisms['iteration'] == i],
-    #             food[food['iteration'] == i], i, width, height, organism_size,
-    #             food_size, results_dir) for i in range(iterations)])
 
 
 def plot_organism(x1, y1, theta, ax, organism_size):
@@ -54,14 +44,14 @@ def plot_organism(x1, y1, theta, ax, organism_size):
     circle = Circle([x1, y1],
                     organism_size,
                     edgecolor="g",
-                    facecolor="lightgreen",
+                    facecolor="mediumseagreen",
                     zorder=8)
     ax.add_artist(circle)
 
     edge = Circle([x1, y1],
                   organism_size,
                   facecolor="None",
-                  edgecolor="darkgreen",
+                  edgecolor="mediumaquamarine",
                   zorder=8)
     ax.add_artist(edge)
 
@@ -82,8 +72,8 @@ def plot_food(x1, y1, ax, food_size):
     circle = Circle(
         [x1, y1],
         food_size,
-        edgecolor="darkslateblue",
-        facecolor="mediumslateblue",
+        edgecolor="firebrick",
+        facecolor="lightcoral",
         zorder=5,
     )
     ax.add_artist(circle)
@@ -93,11 +83,11 @@ def plot_frame(organisms, food, i, xlim, ylim, organism_size, food_size,
                folder):
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(6.8, 5.4)
+    fig.set_size_inches(9.5, 7.5)
     ax.grid()
 
-    ax.set_xlim([0 - xlim * 0.1, xlim + xlim * 0.1])
-    ax.set_ylim([0 - ylim * 0.1, ylim + ylim * 0.1])
+    ax.set_xlim([0 - xlim * 0.02, xlim + xlim * 0.02])
+    ax.set_ylim([0 - ylim * 0.02, ylim + ylim * 0.02])
 
     for ind in organisms.index:
         plot_organism(organisms["x"][ind], organisms["y"][ind],
@@ -114,11 +104,13 @@ def plot_frame(organisms, food, i, xlim, ylim, organism_size, food_size,
     fig.text(0.025, 0.95, f"Generation: {organisms['generation'].max()}")
     fig.text(0.025, 0.90, f"Time: {i}")
 
-    fig.savefig(f"{folder}/{i}.png", dpi=100)
+    fig.savefig(f"{folder}/{i}.png", dpi=180)
     plt.close(fig)
 
 
 def generate_video(result_dir: str,
                    framerate: int = 24,
                    output: str = 'output.mp4'):
-    os.system(f"ffmpeg -framerate {framerate} -i {result_dir}%d.png {output}")
+    os.system(
+        f"ffmpeg -framerate {framerate} -i {result_dir}%d.png {output}  >/dev/null"
+    )

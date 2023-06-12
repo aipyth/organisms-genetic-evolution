@@ -27,6 +27,7 @@ def get_energy_traces_over_time(org_loc,
         name=f'Moving Age Average {window=}',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
     mm_age = go.Scatter(
@@ -35,6 +36,7 @@ def get_energy_traces_over_time(org_loc,
         name=f'Moving Age Max {window=}',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
     ma_energy = go.Scatter(
@@ -43,6 +45,7 @@ def get_energy_traces_over_time(org_loc,
         name=f'Moving Energy Average {window=}',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
     mm_energy = go.Scatter(
@@ -51,6 +54,7 @@ def get_energy_traces_over_time(org_loc,
         name=f'Moving Energy Max {window=}',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
     return mm_energy, ma_energy
@@ -79,6 +83,7 @@ def get_energy_traces_over_generation(org_loc,
         name='Age Average',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
 
@@ -88,6 +93,7 @@ def get_energy_traces_over_generation(org_loc,
         name='Age Max',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
 
@@ -97,6 +103,7 @@ def get_energy_traces_over_generation(org_loc,
         name='Energy Average',
         mode='lines',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
     )
 
@@ -107,6 +114,7 @@ def get_energy_traces_over_generation(org_loc,
         mode='lines',
         # marker_color='rgba(255, 180, 0, 100)',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
         line=dict(width=1),
     )
@@ -118,6 +126,7 @@ def get_energy_traces_over_generation(org_loc,
         mode='lines',
         #  marker_color='rgba(255, 50, 0, 100)',
         legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
         hovertemplate=hovertemplate,
         line=dict(width=3),
     )
@@ -143,23 +152,29 @@ def get_highest_lowest_energy_traces_over_generation(
     lowest_energy_levels = org_energy_mean[
         organism_with_lowest_energy_per_gen].groupby('generation').mean()
 
-    lowest_energy_level_trace = go.Scatter(x=lowest_energy_levels.index,
-                                           y=lowest_energy_levels.values,
-                                           mode='lines',
-                                           name='Lowest Energy',
-                                           line=dict(color='firebrick'),
-                                           legendgroup=legendgroup,
-                                           hovertemplate=hovertemplate,
-                                           fill='tozeroy')
+    lowest_energy_level_trace = go.Scatter(
+        x=lowest_energy_levels.index,
+        y=lowest_energy_levels.values,
+        mode='lines',
+        name='Lowest Energy',
+        #    line=dict(color='firebrick'),
+        legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
+        hovertemplate=hovertemplate,
+        #    fill='tozeroy',
+    )
 
-    highest_energy_level_trace = go.Scatter(x=highest_energy_levels.index,
-                                            y=highest_energy_levels.values,
-                                            mode='lines',
-                                            name='Highest Energy',
-                                            line=dict(color='royalblue'),
-                                            legendgroup=legendgroup,
-                                            hovertemplate=hovertemplate,
-                                            fill='tonexty')
+    highest_energy_level_trace = go.Scatter(
+        x=highest_energy_levels.index,
+        y=highest_energy_levels.values,
+        mode='lines',
+        name='Highest Energy',
+        # line=dict(color='royalblue'),
+        legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
+        hovertemplate=hovertemplate,
+        # fill='tonexty',
+    )
     return lowest_energy_level_trace, highest_energy_level_trace
 
 
@@ -190,20 +205,26 @@ def get_food_to_movement_ratio_traces(
     best_ratio = ratio_per_time.groupby('iteration').min().rolling(
         window).mean()
 
-    worst_ratio_trace = go.Scatter(x=worst_ratio.index,
-                                   y=worst_ratio.values,
-                                   mode='lines',
-                                   name='Worst Ratio',
-                                   legendgroup=legendgroup,
-                                   hovertemplate=hovertemplate,
-                                   line=dict(color='firebrick'))
+    worst_ratio_trace = go.Scatter(
+        x=worst_ratio.index,
+        y=worst_ratio.values,
+        mode='lines',
+        name='Worst Ratio',
+        legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
+        hovertemplate=hovertemplate,
+        #    line=dict(color='firebrick'),
+    )
 
-    best_ratio_trace = go.Scatter(x=best_ratio.index,
-                                  y=best_ratio.values,
-                                  mode='lines',
-                                  name='Best Ratio',
-                                  legendgroup=legendgroup,
-                                  hovertemplate=hovertemplate,
-                                  line=dict(color='royalblue'))
+    best_ratio_trace = go.Scatter(
+        x=best_ratio.index,
+        y=best_ratio.values,
+        mode='lines',
+        name='Best Ratio',
+        legendgroup=legendgroup,
+        legendgrouptitle_text=legendgroup,
+        hovertemplate=hovertemplate,
+        # line=dict(color='royalblue'))
+    )
 
     return worst_ratio_trace, best_ratio_trace

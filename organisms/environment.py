@@ -1,8 +1,11 @@
+from random import randint
+from random import random
 from typing import Any, List
 import numpy as np
 import pandas as pd
 from rtree import index
 from organism import Organism
+from poisson_disk_sampling import poisson_disk_sampling
 
 MAX_ACCELERATION = 0.05
 MAX_VELOCITY = 0.1
@@ -48,9 +51,18 @@ class Simple2DContinuousEnvironment:
         self.vision_range = vision_range
         self._remove_dead_organisms = remove_dead_organisms
         self._on_organism_death_handler = None
+        self._food_spots = poisson_disk_sampling(self.width, self.height, 10)
+        self._organisms_spots = poisson_disk_sampling(self.width, self.height,
+                                                      5)
 
     def add_food(self):
+        # pick spot to generate at
+        px, py = zip(*self._food_spots)
+        i = np.random.randint(0, len(px))
+        x, y = px[i], py[i]
         # generate random location for the food
+        # x = np.random.normal(loc=x, scale=10)
+        # y = np.random.normal(loc=y, scale=10)
         x = np.random.uniform(0, self.width)
         y = np.random.uniform(0, self.height)
         # add the food to the environment
@@ -102,8 +114,15 @@ class Simple2DContinuousEnvironment:
                      x: float | None = None,
                      y: float | None = None):
         if x is None or y is None:
-            x = np.random.uniform(0, self.width)
-            y = np.random.uniform(0, self.height)
+            # pick the spot
+            px, py = zip(*self._organisms_spots)
+            i = np.random.randint(0, len(px))
+            x, y = px[i], py[i]
+            # generate random location for the organism in the spot
+            x = np.random.normal(loc=x, scale=1)
+            y = np.random.normal(loc=y, scale=1)
+            # x = np.random.uniform(0, self.width)
+            # y = np.random.uniform(0, self.height)
         self.organisms[self._organism_counter] = organism
         organism.id = self._organism_counter
         organism.x = np.array([x, y])
@@ -293,9 +312,11 @@ class SectorVision(Vision):
         angle_boundaries = np.linspace(0, 1, self._angle_sectors)
 
         # other organisms vision
-        # dist_indices = np.searchsorted(dist_boundaries, distances_to_organisms) - 1
-        # angle_indices = np.searchsorted(angle_boundaries, angles_to_organisms) - 1
-        # encoding_matrix[dist_indices, angle_indices] = -1
+        dist_indices = np.searchsorted(dist_boundaries,
+                                       distances_to_organisms) - 1
+        angle_indices = np.searchsorted(angle_boundaries,
+                                        angles_to_organisms) - 1
+        encoding_matrix[dist_indices, angle_indices] = -0.2
         # food vision
         dist_indices = np.searchsorted(dist_boundaries, distances_to_food) - 1
         angle_indices = np.searchsorted(angle_boundaries, angles_to_food) - 1

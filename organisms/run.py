@@ -27,8 +27,9 @@ class OrganismsSimpleEnvironmentRunTool:
                  selection: evolve.Selection, crossover: evolve.Crossover,
                  mutation: evolve.Mutation, elitism: int,
                  genome_size: list[int], food_particles_at_start: int,
-                 remove_dead_organisms: bool,
-                 energy_decrease_rate: float) -> None:
+                 remove_dead_organisms: bool, energy_decrease_rate: float,
+                 init_organism_genome_distibution_mu: float,
+                 init_organism_genome_distibution_sigma: float) -> None:
         self._start_organisms_num = start_organism_number
         self._width = width
         self._height = height
@@ -51,6 +52,8 @@ class OrganismsSimpleEnvironmentRunTool:
         self._remove_dead_organisms = remove_dead_organisms
         self._energy_decrease_rate = energy_decrease_rate
         self._organisms_genome_file_count = 0
+        self._init_organism_genome_distibution_mu = init_organism_genome_distibution_mu
+        self._init_organism_genome_distibution_sigma = init_organism_genome_distibution_sigma
 
     def run(self):
         self.env = Simple2DContinuousEnvironment(
@@ -74,7 +77,10 @@ class OrganismsSimpleEnvironmentRunTool:
 
         for _ in range(self._start_organisms_num):
             org = Organism()
-            org.set_genome_size(self._genome_size)
+            org.set_genome_size(
+                self._genome_size,
+                mu=self._init_organism_genome_distibution_mu,
+                sigma=self._init_organism_genome_distibution_sigma)
             org.set_energy_decrease_rate(self._energy_decrease_rate)
             self.env.add_organism(org)
 
@@ -107,6 +113,7 @@ class OrganismsSimpleEnvironmentRunTool:
             for i in range(self._iterations):
 
                 def on_organism_death(organism: Organism):
+                    nonlocal organisms_loc_df
                     x = organism.x[0]
                     y = organism.x[1]
                     theta = organism.r
@@ -115,7 +122,7 @@ class OrganismsSimpleEnvironmentRunTool:
                         "x": x,
                         "y": y,
                         "theta": theta,
-                        "name": r.name,
+                        "name": organism.name,
                         "iteration": i,
                         "generation": generation,
                     }
@@ -152,7 +159,10 @@ class OrganismsSimpleEnvironmentRunTool:
                     #         allele[0].tolist())
                     #     d[f'genome_{num}_bias'] = json.dumps(
                     #         allele[1].tolist())
-                    organisms_loc_df.append(record)
+                    # organisms_loc_df.append(record)
+                    organisms_loc_df = pd.concat(
+                        [organisms_loc_df,
+                         pd.DataFrame([record])])
 
                 self.env.on_organism_death(on_organism_death)
 

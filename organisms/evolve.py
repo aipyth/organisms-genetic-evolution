@@ -90,6 +90,31 @@ class NonUniformMutation(Mutation):
         return r * (1 - t / self._T)**self._b
 
 
+class EnergyFitness(Fitness):
+
+    def __call__(self, organisms: list[Organism]) -> list[float]:
+
+        def fitness(organism: Organism):
+            return organism.energy
+
+        return list(map(fitness, organisms))
+
+
+class TruncationSelection(Selection):
+
+    def __init__(self, fitness: Fitness, n: int = 10):
+        self.n = n
+        self.fitness = fitness
+
+    def __call__(self, population: List[Organism]) -> List[Organism]:
+        # TODO: N as a hyperparameter
+        # fitness_values = np.array(
+        #     [self.fitness(x) for x in population])
+        fitness_values = np.array(self.fitness(population))
+        top_indices = np.argsort(fitness_values)[-self.n:]
+        return [population[ind] for ind in top_indices]
+
+
 class Evolve:
 
     def __init__(self, encoding: encode.Encoding, selection: Selection,
@@ -112,8 +137,11 @@ class Evolve:
         next_population: list[Organism] = []
 
         # 2. Elitism
-        next_population.extend(selected[:self._elitism] if self._elitism <
-                               len(selected) else selected)
+        elites_selector = TruncationSelection(EnergyFitness(), self._elitism)
+        elites = elites_selector(organisms)
+        next_population.extend(elites)
+        # next_population.extend(selected[:self._elitism] if self._elitism <
+        #                        len(selected) else selected)
 
         # 3. Crossover
         for i in range(0, len(selected), 2):
@@ -140,31 +168,6 @@ class FoodConsumnptionToDistanceFitness(Fitness):
             return organism.consumed_food_energy / organism.distance_traveled
 
         return list(map(fitness, organisms))
-
-
-class EnergyFitness(Fitness):
-
-    def __call__(self, organisms: list[Organism]) -> list[float]:
-
-        def fitness(organism: Organism):
-            return organism.energy
-
-        return list(map(fitness, organisms))
-
-
-class TruncationSelection(Selection):
-
-    def __init__(self, fitness: Fitness, n: int = 10):
-        self.n = n
-        self.fitness = fitness
-
-    def __call__(self, population: List[Organism]) -> List[Organism]:
-        # TODO: N as a hyperparameter
-        # fitness_values = np.array(
-        #     [self.fitness(x) for x in population])
-        fitness_values = np.array(self.fitness(population))
-        top_indices = np.argsort(fitness_values)[-self.n:]
-        return [population[ind] for ind in top_indices]
 
 
 class SBXCrossover(Crossover):
@@ -222,8 +225,8 @@ class SASBXCrossover(Crossover):
         parent_a = child._parents[0]
         parent_b = child._parents[1]
         evaluations = self.decider([parent_a, parent_b, child])
-        return (evaluations[2] > evaluations[0] and evaluations[2] >
-                evaluations[1])
+        return (evaluations[2] > evaluations[0]
+                and evaluations[2] > evaluations[1])
 
     def correct_eta(self, child, parent_a, parent_b, alpha):
         encoding_c = self._encoding(child)
@@ -231,12 +234,12 @@ class SASBXCrossover(Crossover):
         encoding_pb = self._encoding(parent_b)
         parent_enc_diff = encoding_pb - encoding_pa
         parent_enc_diff[parent_enc_diff == 0] = 1 << 32
-        beta = np.linalg.norm(
-            1 + (2 * (encoding_c - encoding_pb)) / parent_enc_diff)
+        beta = np.linalg.norm(1 +
+                              (2 *
+                               (encoding_c - encoding_pb)) / parent_enc_diff)
         if beta > 1:
-            eta_s = -1 + (child.eta + 1) * np.log(beta) / np.log(
-                1 + alpha * (beta - 1)
-            )
+            eta_s = -1 + (child.eta + 1) * np.log(beta) / np.log(1 + alpha *
+                                                                 (beta - 1))
         else:
             eta_s = (1 + child.eta) / alpha - 1
         # eta_s[eta_s < self._lower_eta_bound] = self._lower_eta_bound
@@ -249,8 +252,9 @@ class SASBXCrossover(Crossover):
         encoding_cs = self._encoding(child.sibling)
         encoding_pa = self._encoding(parent_a)
         encoding_pb = self._encoding(parent_b)
-        if np.linalg.norm(encoding_c - encoding_pa) < np.linalg.norm(encoding_c
-                                                                     - encoding_pb):
+        if np.linalg.norm(encoding_c -
+                          encoding_pa) < np.linalg.norm(encoding_c -
+                                                        encoding_pb):
             encoding_pn = encoding_pa
             encoding_pd = encoding_pb
         else:
@@ -260,14 +264,13 @@ class SASBXCrossover(Crossover):
         parent_enc_diff[parent_enc_diff == 0] = 1 << 32
         # beta = np.linalg.norm(
         #     1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
-        beta = np.mean(
-            1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
+        beta = np.mean(1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
         siblings_enc_diff = encoding_cs - encoding_c
         siblings_enc_diff[siblings_enc_diff == 0] = 1 << 32
         # beta_a = np.linalg.norm(
         #     1 + (alpha * (beta - 1) * parent_enc_diff) / siblings_enc_diff)
-        beta_a = np.mean(
-            1 + (2 * alpha * (encoding_cs - encoding_pn)) / siblings_enc_diff)
+        beta_a = np.mean(1 + (2 * alpha *
+                              (encoding_cs - encoding_pn)) / siblings_enc_diff)
         # print('beta, beta_a', beta, beta_a)
         if beta > 1:
             eta_s = -1 - np.log(2 * (1 - u)) / np.log(beta_a)
@@ -331,13 +334,9 @@ class SASBXCrossover(Crossover):
             parent = parent_a if np.random.random() > 0.5 else parent_b
             if len(parent._parents) == 2:
                 eta = self.correct_eta_with_u(
-                    parent,
-                    parent._parents[0],
-                    parent._parents[1],
-                    self.alpha if self.is_better_than_parents(parent)
-                    else 1 / self.alpha,
-                    u
-                )
+                    parent, parent._parents[0], parent._parents[1],
+                    self.alpha if self.is_better_than_parents(parent) else 1 /
+                    self.alpha, u)
             if u <= 0.5:
                 beta = np.power(2 * u, 1 / (eta + 1))
             else:
@@ -373,8 +372,8 @@ class SimpleAdaptiveSBXCrossover(Crossover):
         parent_a = child._parents[0]
         parent_b = child._parents[1]
         evaluations = self.decider([parent_a, parent_b, child])
-        return (evaluations[2] > evaluations[0] and evaluations[2] >
-                evaluations[1])
+        return (evaluations[2] > evaluations[0]
+                and evaluations[2] > evaluations[1])
 
     def correct_eta(self, child, parent_a, parent_b, alpha):
         encoding_c = self._encoding(child)
@@ -382,8 +381,9 @@ class SimpleAdaptiveSBXCrossover(Crossover):
         encoding_pb = self._encoding(parent_b)
         parent_enc_diff = encoding_pb - encoding_pa
         parent_enc_diff[parent_enc_diff == 0] = 1 << 32
-        beta = np.linalg.norm(
-            1 + (2 * (encoding_c - encoding_pb)) / parent_enc_diff)
+        beta = np.linalg.norm(1 +
+                              (2 *
+                               (encoding_c - encoding_pb)) / parent_enc_diff)
         if beta > 1:
             eta_s = alpha * child.eta
             # eta_s = -1 + (child.eta + 1) * np.log(beta) / np.log(
@@ -402,8 +402,9 @@ class SimpleAdaptiveSBXCrossover(Crossover):
         encoding_cs = self._encoding(child.sibling)
         encoding_pa = self._encoding(parent_a)
         encoding_pb = self._encoding(parent_b)
-        if np.linalg.norm(encoding_c - encoding_pa) < np.linalg.norm(encoding_c
-                                                                     - encoding_pb):
+        if np.linalg.norm(encoding_c -
+                          encoding_pa) < np.linalg.norm(encoding_c -
+                                                        encoding_pb):
             encoding_pn = encoding_pa
             encoding_pd = encoding_pb
         else:
@@ -411,14 +412,15 @@ class SimpleAdaptiveSBXCrossover(Crossover):
             encoding_pd = encoding_pa
         parent_enc_diff = encoding_pd - encoding_pn
         parent_enc_diff[parent_enc_diff == 0] = 1 << 32
-        beta = np.linalg.norm(
-            1 + (2 * (encoding_c - encoding_pn)) / parent_enc_diff)
+        beta = np.linalg.norm(1 +
+                              (2 *
+                               (encoding_c - encoding_pn)) / parent_enc_diff)
         siblings_enc_diff = encoding_cs - encoding_c
         siblings_enc_diff[siblings_enc_diff == 0] = 1 << 32
         # beta_a = np.linalg.norm(
         #     1 + (alpha * (beta - 1) * parent_enc_diff) / siblings_enc_diff)
-        beta_a = np.linalg.norm(
-            1 + (2 * alpha * (encoding_cs - encoding_pn)) / siblings_enc_diff)
+        beta_a = np.linalg.norm(1 + (2 * alpha * (encoding_cs - encoding_pn)) /
+                                siblings_enc_diff)
         # print('beta, beta_a', beta, beta_a)
         if beta > 1:
             eta_s = -1 - np.log(2 * (1 - u)) / np.log(beta_a)
@@ -464,12 +466,14 @@ class SimpleAdaptiveSBXCrossover(Crossover):
         #         parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha)
         if len(parent_a._parents) == 2:
             eta_a = self.correct_eta(
-                parent_a, parent_a._parents[0], parent_a._parents[1], self.alpha if
-                self.is_better_than_parents(parent_a) else 1 / self.alpha)
+                parent_a, parent_a._parents[0], parent_a._parents[1],
+                self.alpha if self.is_better_than_parents(parent_a) else 1 /
+                self.alpha)
         if len(parent_b._parents) == 2:
             eta_b = self.correct_eta(
-                parent_b, parent_b._parents[0], parent_b._parents[1], self.alpha if
-                self.is_better_than_parents(parent_a) else 1 / self.alpha)
+                parent_b, parent_b._parents[0], parent_b._parents[1],
+                self.alpha if self.is_better_than_parents(parent_a) else 1 /
+                self.alpha)
 
         eta = (eta_a + eta_b) / 2
 

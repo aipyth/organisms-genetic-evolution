@@ -103,11 +103,14 @@ class Organism:
         self.genome = genome
         return self
 
-    def set_genome_size(self, size: list[int]):
+    def set_genome_size(self,
+                        size: list[int],
+                        mu: float = 0,
+                        sigma: float = 1):
         self._size = size
         if self.genome is None or len(self.genome) == 0:
-            mu = 0
-            sigma = 1
+            # mu = 0
+            # sigma = 1
             # initialize weights and bias
             self.genome = [(
                 np.random.normal(mu, sigma, [size[i], size[i + 1]]),
@@ -120,7 +123,7 @@ class Organism:
 
     @property
     def is_alive(self):
-        return self._energy > -5
+        return self._energy > -10
 
     @property
     def age(self):
